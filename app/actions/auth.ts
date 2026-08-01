@@ -39,6 +39,7 @@ export async function login(
   });
 
   if (error) {
+    console.error("[login] Supabase signInWithPassword error:", error.status, error.message);
     return { error: "Correo o contraseña incorrectos." };
   }
 

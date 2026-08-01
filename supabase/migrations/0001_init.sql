@@ -53,19 +53,33 @@ create policy "profiles: read own"
   to authenticated
   using (id = (select auth.uid()));
 
+-- Función auxiliar SECURITY DEFINER: evita la recursión infinita que se
+-- produce si una policy de `profiles` consulta `profiles` directamente
+-- (Postgres reevalúa RLS en esa subconsulta y entra en loop → error 42P17
+-- "infinite recursion detected in policy for relation profiles").
+-- Al ser SECURITY DEFINER, esta consulta interna corre con los privilegios
+-- del dueño de la función (bypassa RLS), rompiendo el ciclo.
+create or replace function public.is_admin()
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1
+    from public.profiles p
+    join public.roles r on r.id = p.role_id
+    where p.id = auth.uid()
+      and r.name = 'Admin'
+  );
+$$;
+
 -- Un Admin puede leer todos los perfiles.
 create policy "profiles: admin can read all"
   on public.profiles for select
   to authenticated
-  using (
-    exists (
-      select 1
-      from public.profiles p
-      join public.roles r on r.id = p.role_id
-      where p.id = (select auth.uid())
-        and r.name = 'Admin'
-    )
-  );
+  using (public.is_admin());
 
 -- Nota: los inserts/updates de `profiles` (alta de usuarios, cambio de rol)
 -- se hacen desde Server Actions usando la service_role key (createAdminClient

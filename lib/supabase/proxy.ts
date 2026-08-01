@@ -36,9 +36,25 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let user = null;
+  try {
+    const { data } = await supabase.auth.getUser();
+    user = data.user;
+  } catch (err) {
+    // A corrupt/stale session cookie (e.g. left over from testing with a
+    // different Supabase key) makes getUser() throw instead of returning
+    // null. Treat it as "no session" and wipe the bad cookies so the app
+    // self-heals instead of flapping between logged-in/out on every request
+    // (which manifests as ERR_TOO_MANY_REDIRECTS in the browser).
+    console.error("[proxy] supabase.auth.getUser() failed, clearing session cookies:", err);
+    request.cookies.getAll().forEach(({ name }) => {
+      if (name.startsWith("sb-")) request.cookies.delete(name);
+    });
+    response = NextResponse.next({ request });
+    request.cookies.getAll().forEach(({ name }) => {
+      if (name.startsWith("sb-")) response.cookies.delete(name);
+    });
+  }
 
   const { pathname } = request.nextUrl;
   const isPublicPath = PUBLIC_PATHS.some((path) => pathname.startsWith(path));
