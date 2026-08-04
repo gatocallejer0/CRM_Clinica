@@ -41,6 +41,12 @@ export default async function DashboardPage() {
           >
             Administrar formulario de pacientes →
           </Link>
+          <Link
+            href="/registro-paciente"
+            className="text-sm font-medium underline underline-offset-4"
+          >
+            Ver formulario de registro de pacientes →
+          </Link>
         </div>
       )}
     </div>
