@@ -28,12 +28,20 @@ export default async function DashboardPage() {
       </p>
 
       {profile.role.name === "Admin" && (
-        <Link
-          href="/admin/usuarios"
-          className="text-sm font-medium underline underline-offset-4"
-        >
-          Administrar usuarios →
-        </Link>
+        <div className="flex flex-col gap-2">
+          <Link
+            href="/admin/usuarios"
+            className="text-sm font-medium underline underline-offset-4"
+          >
+            Administrar usuarios →
+          </Link>
+          <Link
+            href="/admin/formulario"
+            className="text-sm font-medium underline underline-offset-4"
+          >
+            Administrar formulario de pacientes →
+          </Link>
+        </div>
       )}
     </div>
   );
