@@ -78,7 +78,7 @@ export function PatientRegistrationForm({ fields }: { fields: FormField[] }) {
 
   if (state?.success) {
     return (
-      <Card className="w-full max-w-lg">
+      <Card className="relative w-full max-w-lg animate-in fade-in slide-in-from-bottom-2 duration-500">
         <CardHeader>
           <CardTitle>¡Registro completo!</CardTitle>
           <CardDescription>
@@ -91,7 +91,10 @@ export function PatientRegistrationForm({ fields }: { fields: FormField[] }) {
   }
 
   return (
-    <form action={action} className="flex w-full max-w-lg flex-col gap-6">
+    <form
+      action={action}
+      className="relative flex w-full max-w-lg animate-in flex-col gap-6 fade-in slide-in-from-bottom-2 duration-500"
+    >
       <Card>
         <CardHeader>
           <CardTitle>Datos generales de paciente</CardTitle>

@@ -7,9 +7,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-sans: var(--font-manrope);
+  --font-mono: ui-monospace, monospace;
+  --font-heading: var(--font-poppins);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -49,38 +49,56 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --background: oklch(98.5% 0.006 340);
+  --foreground: oklch(28% 0.03 20);
+  --card: oklch(100% 0 0 / 45%);
+  --card-foreground: oklch(28% 0.03 20);
+  --popover: oklch(100% 0 0 / 92%);
+  --popover-foreground: oklch(28% 0.03 20);
+  --primary: oklch(64% 0.08 18);
+  --primary-foreground: oklch(99% 0 0);
+  --secondary: oklch(93% 0.02 20);
+  --secondary-foreground: oklch(30% 0.02 20);
+  --muted: oklch(94% 0.015 20);
+  --muted-foreground: oklch(52% 0.02 20);
+  --accent: oklch(92% 0.045 15 / 75%);
+  --accent-foreground: oklch(30% 0.02 20);
+  --destructive: oklch(50% 0.13 25);
+  --border: oklch(80% 0.035 20 / 45%);
+  --input: oklch(80% 0.035 20 / 45%);
+  --ring: oklch(64% 0.08 18 / 50%);
+  --chart-1: oklch(64% 0.08 18);
+  --chart-2: oklch(55% 0.11 250);
+  --chart-3: oklch(52% 0.08 320);
+  --chart-4: oklch(45% 0.11 80);
+  --chart-5: oklch(42% 0.1 150);
+  --radius: 0.9rem;
+  --sidebar: oklch(100% 0 0 / 38%);
+  --sidebar-foreground: oklch(28% 0.03 20);
+  --sidebar-primary: oklch(64% 0.08 18);
+  --sidebar-primary-foreground: oklch(99% 0 0);
+  --sidebar-accent: oklch(92% 0.045 15 / 75%);
+  --sidebar-accent-foreground: oklch(30% 0.02 20);
+  --sidebar-border: oklch(100% 0 0 / 75%);
+  --sidebar-ring: oklch(64% 0.08 18 / 50%);
+
+  /* Glassmorfismo: fondo, gradientes y sombras (ver design_handoff_crm_ginecologia) */
+  --gradient-bg: linear-gradient(160deg, oklch(98.5% 0.006 340), oklch(98% 0.009 40));
+  --gradient-primary: linear-gradient(135deg, oklch(64% 0.08 18), oklch(70% 0.06 350));
+  --shadow-glass: 0 10px 28px -4px rgba(190, 120, 130, 0.14), inset 0 1px 0 0 rgba(255, 255, 255, 0.6);
+  --shadow-glass-lg: 0 16px 34px -6px rgba(190, 120, 130, 0.22);
+  --shadow-button: 0 8px 18px oklch(64% 0.08 18 / 25%);
+  --shadow-button-hover: 0 12px 26px oklch(64% 0.08 18 / 38%);
+
+  /* Colores de estado (citas / pagos) */
+  --status-confirmed-fg: oklch(42% 0.1 150);
+  --status-confirmed-bg: oklch(92% 0.05 150);
+  --status-waiting-fg: oklch(45% 0.11 80);
+  --status-waiting-bg: oklch(92% 0.07 85);
+  --status-done-fg: oklch(42% 0.08 230);
+  --status-done-bg: oklch(92% 0.04 230);
+  --status-cancelled-fg: oklch(45% 0.1 25);
+  --status-cancelled-bg: oklch(93% 0.05 25);
 }
 
 .dark {
@@ -115,6 +133,22 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+
+  --gradient-bg: linear-gradient(160deg, oklch(0.16 0.01 20), oklch(0.13 0.012 340));
+  --gradient-primary: linear-gradient(135deg, oklch(64% 0.08 18), oklch(70% 0.06 350));
+  --shadow-glass: 0 10px 28px -4px rgba(0, 0, 0, 0.4), inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+  --shadow-glass-lg: 0 16px 34px -6px rgba(0, 0, 0, 0.5);
+  --shadow-button: 0 8px 18px oklch(64% 0.08 18 / 35%);
+  --shadow-button-hover: 0 12px 26px oklch(64% 0.08 18 / 48%);
+
+  --status-confirmed-fg: oklch(80% 0.1 150);
+  --status-confirmed-bg: oklch(30% 0.06 150);
+  --status-waiting-fg: oklch(82% 0.11 80);
+  --status-waiting-bg: oklch(32% 0.07 85);
+  --status-done-fg: oklch(80% 0.08 230);
+  --status-done-bg: oklch(30% 0.05 230);
+  --status-cancelled-fg: oklch(82% 0.1 25);
+  --status-cancelled-bg: oklch(32% 0.06 25);
 }
 
 @layer base {

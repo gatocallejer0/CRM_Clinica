@@ -1,4 +1,5 @@
 import { LoginForm } from "@/components/login-form";
+import { AuthBackgroundBlobs } from "@/components/auth-background-blobs";
 
 export default async function LoginPage({
   searchParams,
@@ -8,7 +9,8 @@ export default async function LoginPage({
   const { redirectTo } = await searchParams;
 
   return (
-    <div className="flex flex-1 items-center justify-center p-6">
+    <div className="relative flex flex-1 items-center justify-center overflow-hidden p-6">
+      <AuthBackgroundBlobs />
       <LoginForm redirectTo={redirectTo} />
     </div>
   );
