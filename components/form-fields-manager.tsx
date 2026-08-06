@@ -326,7 +326,11 @@ function AddFieldForm({
 
       <div className="flex flex-col gap-1">
         <Label>Tipo</Label>
-        <Select value={fieldType} onValueChange={(value) => setFieldType(value as FormFieldType)}>
+        <Select
+          value={fieldType}
+          onValueChange={(value) => setFieldType(value as FormFieldType)}
+          items={FIELD_TYPE_LABELS}
+        >
           <SelectTrigger className="w-40">
             <SelectValue />
           </SelectTrigger>

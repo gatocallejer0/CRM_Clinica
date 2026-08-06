@@ -99,6 +99,11 @@
   --status-done-bg: oklch(92% 0.04 230);
   --status-cancelled-fg: oklch(45% 0.1 25);
   --status-cancelled-bg: oklch(93% 0.05 25);
+
+  /* Categoría de servicio (leyenda de la vista semanal de Agenda) */
+  --type-prenatal: oklch(56% 0.1 18);
+  --type-general: oklch(55% 0.11 250);
+  --type-seguimiento: oklch(52% 0.08 320);
 }
 
 .dark {
@@ -149,6 +154,10 @@
   --status-done-bg: oklch(30% 0.05 230);
   --status-cancelled-fg: oklch(82% 0.1 25);
   --status-cancelled-bg: oklch(32% 0.06 25);
+
+  --type-prenatal: oklch(72% 0.1 18);
+  --type-general: oklch(72% 0.11 250);
+  --type-seguimiento: oklch(70% 0.08 320);
 }
 
 @layer base {

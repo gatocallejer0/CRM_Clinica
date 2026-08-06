@@ -1,13 +1,22 @@
 import { requireRole } from "@/lib/auth/roles";
-import { ComingSoon } from "@/components/coming-soon";
+import { listPatientsForExpediente, getPatientDetail } from "@/app/actions/clinical-records";
+import { listDoctors } from "@/app/actions/appointments";
+import { ExpedienteView } from "@/components/expediente/expediente-view";
 
 export default async function ExpedientePage() {
-  await requireRole(["Admin", "Doctor", "Recepción"]);
+  const profile = await requireRole(["Admin", "Doctor"]);
+
+  const [patients, doctors] = await Promise.all([listPatientsForExpediente(), listDoctors()]);
+  const initialSelectedId = patients[0]?.id ?? null;
+  const initialDetail = initialSelectedId ? await getPatientDetail(initialSelectedId) : null;
 
   return (
-    <ComingSoon
-      title="Expediente clínico"
-      description="Próximamente: historial de visitas, recetas y documentos por paciente."
+    <ExpedienteView
+      patients={patients}
+      initialSelectedId={initialSelectedId}
+      initialDetail={initialDetail}
+      doctors={doctors}
+      isAdmin={profile.role.name === "Admin"}
     />
   );
 }

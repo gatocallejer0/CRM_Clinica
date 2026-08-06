@@ -20,7 +20,7 @@ export type NavItem = {
 export const GENERAL_NAV: NavItem[] = [
   { href: "/", label: "Dashboard", icon: LayoutGrid, roles: ["Admin", "Doctor", "Recepción"] },
   { href: "/agenda", label: "Agenda", icon: CalendarDays, roles: ["Admin", "Doctor", "Recepción"] },
-  { href: "/expediente", label: "Expediente clínico", icon: FileText, roles: ["Admin", "Doctor", "Recepción"] },
+  { href: "/expediente", label: "Expediente clínico", icon: FileText, roles: ["Admin", "Doctor"] },
 ];
 
 export const ADMIN_NAV: NavItem[] = [
