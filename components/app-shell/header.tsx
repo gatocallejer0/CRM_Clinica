@@ -3,12 +3,15 @@
 import { Menu } from "lucide-react";
 import { getScreenTitle } from "./nav-config";
 
-const TODAY_LABEL = new Intl.DateTimeFormat("es-GT", {
-  weekday: "short",
-  day: "2-digit",
-  month: "short",
-  year: "numeric",
-}).format(new Date());
+function todayLabel(): string {
+  return new Intl.DateTimeFormat("es-GT", {
+    timeZone: "America/Guatemala",
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date());
+}
 
 export function Header({
   pathname,
@@ -34,8 +37,11 @@ export function Header({
         {getScreenTitle(pathname)}
       </div>
       <div className="flex-1" />
-      <div className="shrink-0 text-[12.5px] whitespace-nowrap text-muted-foreground capitalize">
-        {TODAY_LABEL}
+      <div
+        suppressHydrationWarning
+        className="shrink-0 text-[12.5px] whitespace-nowrap text-muted-foreground capitalize"
+      >
+        {todayLabel()}
       </div>
     </div>
   );
