@@ -9,12 +9,12 @@ import { Button } from "@/components/ui/button";
 import { NewClinicalRecordDialog } from "./new-clinical-record-dialog";
 import { getInitials, computeBmi, computeGestationalWeeks, formatDateEs } from "./clinical-utils";
 
-type Tab = "general" | "historial" | "recetas" | "documentos";
+type Tab = "general" | "historial" | "ordenes" | "documentos";
 
 const TABS: { value: Tab; label: string }[] = [
   { value: "general", label: "General" },
   { value: "historial", label: "Historial de citas" },
-  { value: "recetas", label: "Recetas" },
+  { value: "ordenes", label: "Órdenes médicas" },
   { value: "documentos", label: "Documentos" },
 ];
 
@@ -37,7 +37,7 @@ export function PatientDetailPane({
   const latestRecord = patient.records[0] ?? null;
   const bmi = computeBmi(latestRecord?.weight_kg ?? null, latestRecord?.height_cm ?? null);
   const gestationalWeeks = computeGestationalWeeks(latestRecord?.last_menstrual_period ?? null);
-  const prescriptions = patient.records.filter((r) => r.medication);
+  const medicalOrders = patient.records.filter((r) => r.medical_orders);
 
   return (
     <div className={`flex flex-col gap-4 transition-opacity ${pending ? "opacity-60" : ""}`}>
@@ -111,38 +111,65 @@ export function PatientDetailPane({
           {patient.records.length === 0 && (
             <p className="py-8 text-center text-sm text-muted-foreground">Sin registros todavía.</p>
           )}
-          {patient.records.map((r, i) => (
-            <div key={r.id} className="relative flex gap-4 pl-1">
-              <div className="flex flex-col items-center">
-                <div className="mt-1.5 size-[9px] shrink-0 rounded-full bg-[image:var(--gradient-primary)]" />
-                {i < patient.records.length - 1 && <div className="w-px flex-1 bg-border" />}
+          {patient.records.map((r, i) => {
+            const recordBmi = computeBmi(r.weight_kg, r.height_cm);
+            const recordWeeks = computeGestationalWeeks(r.last_menstrual_period);
+            const vitals = [
+              r.weight_kg ? `Peso: ${r.weight_kg} kg` : null,
+              recordBmi ? `IMC: ${recordBmi}` : null,
+              recordWeeks !== null ? `Semanas de embarazo: ${recordWeeks}` : null,
+            ].filter((v): v is string => v !== null);
+
+            return (
+              <div key={r.id} className="relative flex gap-4 pl-1">
+                <div className="flex flex-col items-center">
+                  <div className="mt-1.5 size-[9px] shrink-0 rounded-full bg-[image:var(--gradient-primary)]" />
+                  {i < patient.records.length - 1 && <div className="w-px flex-1 bg-border" />}
+                </div>
+                <div className="flex-1 pb-5">
+                  <span className="rounded-full bg-accent px-2.5 py-1 text-[11px] font-semibold text-accent-foreground">
+                    {formatDateEs(r.record_date)}
+                  </span>
+                  <p className="mt-1.5 text-sm font-medium text-foreground">{r.reason || "Consulta"}</p>
+                  {r.diagnosis && <p className="text-xs text-muted-foreground">{r.diagnosis}</p>}
+
+                  {r.evolution_notes && (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      <span className="font-semibold text-foreground">Notas de evolución: </span>
+                      {r.evolution_notes}
+                    </p>
+                  )}
+
+                  {vitals.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {vitals.map((v) => (
+                        <span
+                          key={v}
+                          className="rounded-full bg-secondary px-2.5 py-1 text-[11px] font-medium text-secondary-foreground"
+                        >
+                          {v}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="flex-1 pb-5">
-                <span className="rounded-full bg-accent px-2.5 py-1 text-[11px] font-semibold text-accent-foreground">
-                  {formatDateEs(r.record_date)}
-                </span>
-                <p className="mt-1.5 text-sm font-medium text-foreground">{r.reason || "Consulta"}</p>
-                {r.diagnosis && <p className="text-xs text-muted-foreground">{r.diagnosis}</p>}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </Card>
       )}
 
-      {tab === "recetas" && (
+      {tab === "ordenes" && (
         <div className="flex flex-col gap-3">
-          {prescriptions.length === 0 && (
+          {medicalOrders.length === 0 && (
             <Card className="px-5 py-8 text-center text-sm text-muted-foreground">
-              Sin recetas registradas.
+              Sin órdenes médicas registradas.
             </Card>
           )}
-          {prescriptions.map((r) => (
+          {medicalOrders.map((r) => (
             <Card key={r.id} className="px-5 py-4">
               <p className="text-xs font-medium text-muted-foreground">{formatDateEs(r.record_date)}</p>
-              <p className="mt-1 text-sm font-semibold text-foreground">{r.medication}</p>
-              {r.medication_instructions && (
-                <p className="text-sm text-muted-foreground">{r.medication_instructions}</p>
-              )}
+              <p className="mt-1 text-sm text-foreground">{r.medical_orders}</p>
             </Card>
           ))}
         </div>

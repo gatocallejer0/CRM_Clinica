@@ -170,4 +170,11 @@
   html {
     @apply font-sans;
   }
+  /* Tailwind v4 ya no pone cursor:pointer en <button> por defecto (sigue el
+     comportamiento nativo del navegador). Lo restauramos para que cualquier
+     elemento clicable se sienta clicable. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
 }

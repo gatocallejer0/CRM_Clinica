@@ -62,7 +62,7 @@ export function NewClinicalRecordDialog({
         <DialogHeader>
           <DialogTitle>Nuevo registro clínico</DialogTitle>
           <DialogDescription>
-            Diagnóstico, notas de evolución, órdenes y receta de esta visita.
+            Diagnóstico, notas de evolución y órdenes médicas de esta visita.
           </DialogDescription>
         </DialogHeader>
 
@@ -108,17 +108,6 @@ export function NewClinicalRecordDialog({
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="medicalOrders">Órdenes médicas</Label>
             <Textarea id="medicalOrders" name="medicalOrders" />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="medication">Medicamento</Label>
-              <Input id="medication" name="medication" />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="medicationInstructions">Indicaciones</Label>
-              <Input id="medicationInstructions" name="medicationInstructions" />
-            </div>
           </div>
 
           <div className="grid grid-cols-3 gap-3">
