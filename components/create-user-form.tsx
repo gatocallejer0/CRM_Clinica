@@ -11,8 +11,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Field, FormStagger } from "@/components/ui/field";
 import {
   Select,
   SelectContent,
@@ -36,47 +36,39 @@ export function CreateUserForm({ roles }: { roles: Role[] }) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={action} className="flex flex-col gap-4 max-w-sm">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="fullName">Nombre completo</Label>
-            <Input id="fullName" name="fullName" required />
-          </div>
+        <form action={action} className="flex max-w-sm flex-col gap-4">
+          <FormStagger className="flex flex-col gap-4">
+            <Field label="Nombre completo" htmlFor="fullName" required>
+              <Input id="fullName" name="fullName" required />
+            </Field>
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="email">Correo</Label>
-            <Input id="email" name="email" type="email" required />
-          </div>
+            <Field label="Correo" htmlFor="email" required>
+              <Input id="email" name="email" type="email" required />
+            </Field>
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="password">Contraseña temporal</Label>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              minLength={8}
-              required
-            />
-          </div>
+            <Field label="Contraseña temporal" htmlFor="password" required hint="Mínimo 8 caracteres">
+              <Input id="password" name="password" type="password" minLength={8} required />
+            </Field>
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="roleId">Rol</Label>
-            <Select
-              name="roleId"
-              required
-              items={Object.fromEntries(roles.map((role) => [role.id, role.name]))}
-            >
-              <SelectTrigger id="roleId" className="w-full">
-                <SelectValue placeholder="Selecciona un rol" />
-              </SelectTrigger>
-              <SelectContent>
-                {roles.map((role) => (
-                  <SelectItem key={role.id} value={role.id}>
-                    {role.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+            <Field label="Rol" htmlFor="roleId" required>
+              <Select
+                name="roleId"
+                required
+                items={Object.fromEntries(roles.map((role) => [role.id, role.name]))}
+              >
+                <SelectTrigger id="roleId" className="w-full">
+                  <SelectValue placeholder="Selecciona un rol" />
+                </SelectTrigger>
+                <SelectContent>
+                  {roles.map((role) => (
+                    <SelectItem key={role.id} value={role.id}>
+                      {role.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          </FormStagger>
 
           {state?.error && (
             <Alert variant="destructive">
@@ -90,7 +82,7 @@ export function CreateUserForm({ roles }: { roles: Role[] }) {
             </Alert>
           )}
 
-          <Button type="submit" disabled={pending} className="mt-2">
+          <Button type="submit" disabled={pending} loading={pending} className="mt-2">
             {pending ? "Creando..." : "Crear usuario"}
           </Button>
         </form>

@@ -16,10 +16,10 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Field, FieldRow, FormStagger } from "@/components/ui/field";
 import {
   Select,
   SelectContent,
@@ -66,64 +66,58 @@ export function NewClinicalRecordDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form action={action} className="flex flex-col gap-3">
+        <form action={action} className="flex flex-col gap-4">
           <input type="hidden" name="patientId" value={patientId} />
 
-          {showDoctorSelect && (
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="doctorId">Doctora</Label>
-              <Select
-                name="doctorId"
-                items={Object.fromEntries(doctors.map((d) => [d.id, d.full_name]))}
-              >
-                <SelectTrigger id="doctorId" className="w-full">
-                  <SelectValue placeholder="Selecciona una doctora" />
-                </SelectTrigger>
-                <SelectContent>
-                  {doctors.map((d) => (
-                    <SelectItem key={d.id} value={d.id}>
-                      {d.full_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+          <FormStagger className="flex flex-col gap-4">
+            {showDoctorSelect && (
+              <Field label="Doctora" htmlFor="doctorId">
+                <Select
+                  name="doctorId"
+                  items={Object.fromEntries(doctors.map((d) => [d.id, d.full_name]))}
+                >
+                  <SelectTrigger id="doctorId" className="w-full">
+                    <SelectValue placeholder="Selecciona una doctora" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {doctors.map((d) => (
+                      <SelectItem key={d.id} value={d.id}>
+                        {d.full_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            )}
 
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="reason">Motivo de la consulta</Label>
-            <Input id="reason" name="reason" />
-          </div>
+            <Field label="Motivo de la consulta" htmlFor="reason">
+              <Input id="reason" name="reason" />
+            </Field>
 
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="diagnosis">Diagnóstico</Label>
-            <Textarea id="diagnosis" name="diagnosis" />
-          </div>
+            <Field label="Diagnóstico" htmlFor="diagnosis">
+              <Textarea id="diagnosis" name="diagnosis" />
+            </Field>
 
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="evolutionNotes">Notas de evolución</Label>
-            <Textarea id="evolutionNotes" name="evolutionNotes" />
-          </div>
+            <Field label="Notas de evolución" htmlFor="evolutionNotes">
+              <Textarea id="evolutionNotes" name="evolutionNotes" />
+            </Field>
 
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="medicalOrders">Órdenes médicas</Label>
-            <Textarea id="medicalOrders" name="medicalOrders" />
-          </div>
+            <Field label="Órdenes médicas" htmlFor="medicalOrders">
+              <Textarea id="medicalOrders" name="medicalOrders" />
+            </Field>
 
-          <div className="grid grid-cols-3 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="weightKg">Peso (kg)</Label>
-              <Input id="weightKg" name="weightKg" type="number" step="0.1" min="0" />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="heightCm">Altura (cm)</Label>
-              <Input id="heightCm" name="heightCm" type="number" step="0.1" min="0" />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="lastMenstrualPeriod">FUM</Label>
-              <Input id="lastMenstrualPeriod" name="lastMenstrualPeriod" type="date" />
-            </div>
-          </div>
+            <FieldRow className="grid-cols-3">
+              <Field label="Peso (kg)" htmlFor="weightKg">
+                <Input id="weightKg" name="weightKg" type="number" step="0.1" min="0" />
+              </Field>
+              <Field label="Altura (cm)" htmlFor="heightCm">
+                <Input id="heightCm" name="heightCm" type="number" step="0.1" min="0" />
+              </Field>
+              <Field label="FUM" htmlFor="lastMenstrualPeriod">
+                <Input id="lastMenstrualPeriod" name="lastMenstrualPeriod" type="date" />
+              </Field>
+            </FieldRow>
+          </FormStagger>
 
           {state?.error && (
             <Alert variant="destructive">
@@ -133,7 +127,7 @@ export function NewClinicalRecordDialog({
 
           <DialogFooter>
             <DialogClose render={<Button type="button" variant="ghost" />}>Cancelar</DialogClose>
-            <Button type="submit" disabled={pending}>
+            <Button type="submit" disabled={pending} loading={pending}>
               {pending ? "Guardando..." : "Guardar"}
             </Button>
           </DialogFooter>

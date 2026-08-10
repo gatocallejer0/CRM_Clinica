@@ -4,7 +4,8 @@ import * as z from "zod";
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth/roles";
 import { createClient } from "@/lib/supabase/server";
-import { combineClinicDateTime } from "@/lib/clinic-time";
+import { combineClinicDateTime, formatClinicTime } from "@/lib/clinic-time";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 const SCHEDULING_ROLES = ["Admin", "Doctor", "Recepción"];
 
@@ -27,6 +28,7 @@ export type DoctorOption = {
 export type Appointment = {
   id: string;
   scheduled_at: string;
+  duration_minutes: number;
   status: AppointmentStatus;
   notes: string | null;
   patient_id: string;
@@ -41,12 +43,76 @@ export type Appointment = {
 type AppointmentRow = {
   id: string;
   scheduled_at: string;
+  duration_minutes: number;
   status: AppointmentStatus;
   notes: string | null;
   patient_id: string;
   doctor: { id: string; full_name: string } | null;
   service: { id: string; name: string; category: ServiceCategory } | null;
 };
+
+export type OverlapConflict = {
+  patientName: string;
+  timeLabel: string;
+};
+
+/**
+ * Citas que se traslapan con [scheduledAt, scheduledAt + durationMinutes)
+ * para la misma doctora, excluyendo canceladas y (al editar) la propia cita.
+ * Se restringe al día porque ninguna cita dura más de 240 min (ver
+ * durationMinutes en los schemas de abajo), así que dos citas de días
+ * distintos nunca se traslapan.
+ */
+async function findOverlaps(
+  supabase: SupabaseClient,
+  {
+    doctorId,
+    scheduledAt,
+    durationMinutes,
+    excludeId,
+  }: { doctorId: string; scheduledAt: Date; durationMinutes: number; excludeId?: string },
+): Promise<OverlapConflict[]> {
+  const dayStart = new Date(scheduledAt);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+
+  const { data, error } = await supabase
+    .from("appointments")
+    .select("id, scheduled_at, duration_minutes, patient_id")
+    .eq("doctor_id", doctorId)
+    .neq("status", "cancelada")
+    .gte("scheduled_at", dayStart.toISOString())
+    .lt("scheduled_at", dayEnd.toISOString());
+
+  if (error || !data) return [];
+
+  const newStart = scheduledAt.getTime();
+  const newEnd = newStart + durationMinutes * 60000;
+
+  const overlapping = data.filter((row) => {
+    if (excludeId && row.id === excludeId) return false;
+    const rowStart = new Date(row.scheduled_at).getTime();
+    const rowEnd = rowStart + row.duration_minutes * 60000;
+    return newStart < rowEnd && rowStart < newEnd;
+  });
+
+  if (overlapping.length === 0) return [];
+
+  const patientIds = [...new Set(overlapping.map((r) => r.patient_id))];
+  const namesByPatientId = new Map<string, string>();
+  const { data: patients } = await supabase
+    .from("patient_summary")
+    .select("id, full_name")
+    .in("id", patientIds);
+  for (const p of patients ?? []) {
+    namesByPatientId.set(p.id, p.full_name ?? "Paciente sin nombre");
+  }
+
+  return overlapping.map((row) => ({
+    patientName: namesByPatientId.get(row.patient_id) ?? "Paciente sin nombre",
+    timeLabel: formatClinicTime(new Date(row.scheduled_at)),
+  }));
+}
 
 /** Público para el personal con acceso a Agenda; RLS filtra por rol. */
 export async function listServices(): Promise<Service[]> {
@@ -114,7 +180,7 @@ export async function listAppointments(fromISO: string, toISO: string): Promise<
   const { data, error } = await supabase
     .from("appointments")
     .select(
-      "id, scheduled_at, status, notes, patient_id, doctor:profiles!doctor_id(id, full_name), service:services(id, name, category)",
+      "id, scheduled_at, duration_minutes, status, notes, patient_id, doctor:profiles!doctor_id(id, full_name), service:services(id, name, category)",
     )
     .gte("scheduled_at", fromISO)
     .lt("scheduled_at", toISO)
@@ -144,6 +210,7 @@ export async function listAppointments(fromISO: string, toISO: string): Promise<
   return rows.map((row) => ({
     id: row.id,
     scheduled_at: row.scheduled_at,
+    duration_minutes: row.duration_minutes,
     status: row.status,
     notes: row.notes,
     patient_id: row.patient_id,
@@ -156,37 +223,61 @@ export async function listAppointments(fromISO: string, toISO: string): Promise<
   }));
 }
 
-const CreateAppointmentSchema = z.object({
-  patientId: z.string().uuid({ error: "Selecciona una paciente." }),
-  doctorId: z.string().uuid({ error: "Selecciona una doctora." }),
-  serviceId: z.string().uuid({ error: "Selecciona un servicio." }),
-  date: z.string().min(1, { error: "Selecciona una fecha." }),
-  time: z.string().min(1, { error: "Selecciona una hora." }),
-  status: z.enum(["confirmada", "en_espera", "atendida", "cancelada"]),
-  notes: z.string().trim().optional(),
-});
+const CreateAppointmentSchema = z
+  .object({
+    patientMode: z.enum(["existing", "new"]),
+    patientId: z.string().uuid().optional(),
+    newPatientName: z.string().trim().min(2).optional(),
+    newPatientEmail: z.string().trim().email().optional(),
+    doctorId: z.string().uuid({ error: "Selecciona una doctora." }),
+    serviceId: z.string().uuid({ error: "Selecciona un servicio." }),
+    date: z.string().min(1, { error: "Selecciona una fecha." }),
+    time: z.string().min(1, { error: "Selecciona una hora." }),
+    durationMinutes: z.coerce.number().int().min(5).max(240),
+    status: z.enum(["confirmada", "en_espera", "atendida", "cancelada"]),
+    notes: z.string().trim().optional(),
+    force: z.enum(["true", "false"]).transform((v) => v === "true"),
+  })
+  .refine((data) => (data.patientMode === "existing" ? !!data.patientId : true), {
+    error: "Selecciona una paciente.",
+    path: ["patientId"],
+  })
+  .refine((data) => (data.patientMode === "new" ? !!data.newPatientName : true), {
+    error: "Escribe el nombre de la paciente.",
+    path: ["newPatientName"],
+  })
+  .refine((data) => (data.patientMode === "new" ? !!data.newPatientEmail : true), {
+    error: "Escribe un correo válido.",
+    path: ["newPatientEmail"],
+  });
 
-export type CreateAppointmentState =
+export type AppointmentFormState =
   | {
       error?: string;
       success?: boolean;
+      overlap?: OverlapConflict[];
     }
   | undefined;
 
 export async function createAppointment(
-  _prevState: CreateAppointmentState,
+  _prevState: AppointmentFormState,
   formData: FormData,
-): Promise<CreateAppointmentState> {
+): Promise<AppointmentFormState> {
   const profile = await requireRole(SCHEDULING_ROLES);
 
   const parsed = CreateAppointmentSchema.safeParse({
-    patientId: formData.get("patientId"),
+    patientMode: formData.get("patientMode") || "existing",
+    patientId: formData.get("patientId") || undefined,
+    newPatientName: formData.get("newPatientName") || undefined,
+    newPatientEmail: formData.get("newPatientEmail") || undefined,
     doctorId: formData.get("doctorId"),
     serviceId: formData.get("serviceId"),
     date: formData.get("date"),
     time: formData.get("time"),
+    durationMinutes: formData.get("durationMinutes") || 30,
     status: formData.get("status") || "confirmada",
     notes: formData.get("notes"),
+    force: formData.get("force") || "false",
   });
 
   if (!parsed.success) {
@@ -194,13 +285,59 @@ export async function createAppointment(
   }
 
   const supabase = await createClient();
-  const scheduledAt = combineClinicDateTime(parsed.data.date, parsed.data.time);
+
+  const scheduledAtForOverlap = combineClinicDateTime(parsed.data.date, parsed.data.time);
+  if (!parsed.data.force) {
+    const overlap = await findOverlaps(supabase, {
+      doctorId: parsed.data.doctorId,
+      scheduledAt: scheduledAtForOverlap,
+      durationMinutes: parsed.data.durationMinutes,
+    });
+    if (overlap.length > 0) return { overlap };
+  }
+
+  let patientId = parsed.data.patientId;
+  if (parsed.data.patientMode === "new") {
+    // patients ya no tiene columna full_name (0004_dynamic_form.sql la movió
+    // a patient_answers, junto con el resto de campos del formulario
+    // dinámico) — el nombre se guarda como respuesta a la pregunta "full_name"
+    // del catálogo form_fields, igual que hace registerPatient().
+    const { data: newPatient, error: patientError } = await supabase
+      .from("patients")
+      .insert({ email: parsed.data.newPatientEmail })
+      .select("id")
+      .single();
+
+    if (patientError) {
+      console.error("[createAppointment] Error creando paciente:", patientError.message);
+      return { error: "No se pudo crear la paciente." };
+    }
+    patientId = newPatient.id;
+
+    const { data: nameField } = await supabase
+      .from("form_fields")
+      .select("id")
+      .eq("key", "full_name")
+      .maybeSingle();
+
+    if (nameField) {
+      const { error: answerError } = await supabase.from("patient_answers").insert({
+        patient_id: patientId,
+        field_id: nameField.id,
+        value: parsed.data.newPatientName,
+      });
+      if (answerError) {
+        console.error("[createAppointment] Error guardando nombre:", answerError.message);
+      }
+    }
+  }
 
   const { error } = await supabase.from("appointments").insert({
-    patient_id: parsed.data.patientId,
+    patient_id: patientId,
     doctor_id: parsed.data.doctorId,
     service_id: parsed.data.serviceId,
-    scheduled_at: scheduledAt.toISOString(),
+    scheduled_at: scheduledAtForOverlap.toISOString(),
+    duration_minutes: parsed.data.durationMinutes,
     status: parsed.data.status,
     notes: parsed.data.notes || null,
     created_by: profile.id,
@@ -215,14 +352,105 @@ export async function createAppointment(
   return { success: true };
 }
 
-export async function updateAppointmentStatus(
+const UpdateAppointmentSchema = z.object({
+  id: z.string().uuid(),
+  doctorId: z.string().uuid({ error: "Selecciona una doctora." }),
+  serviceId: z.string().uuid({ error: "Selecciona un servicio." }),
+  date: z.string().min(1, { error: "Selecciona una fecha." }),
+  time: z.string().min(1, { error: "Selecciona una hora." }),
+  durationMinutes: z.coerce.number().int().min(5).max(240),
+  status: z.enum(["confirmada", "en_espera", "atendida", "cancelada"]),
+  notes: z.string().trim().optional(),
+  force: z.enum(["true", "false"]).transform((v) => v === "true"),
+});
+
+export async function updateAppointment(
+  _prevState: AppointmentFormState,
+  formData: FormData,
+): Promise<AppointmentFormState> {
+  await requireRole(SCHEDULING_ROLES);
+
+  const parsed = UpdateAppointmentSchema.safeParse({
+    id: formData.get("id"),
+    doctorId: formData.get("doctorId"),
+    serviceId: formData.get("serviceId"),
+    date: formData.get("date"),
+    time: formData.get("time"),
+    durationMinutes: formData.get("durationMinutes") || 30,
+    status: formData.get("status") || "confirmada",
+    notes: formData.get("notes"),
+    force: formData.get("force") || "false",
+  });
+
+  if (!parsed.success) {
+    return { error: "Revisa los datos de la cita." };
+  }
+
+  const supabase = await createClient();
+  const scheduledAt = combineClinicDateTime(parsed.data.date, parsed.data.time);
+
+  if (!parsed.data.force) {
+    const overlap = await findOverlaps(supabase, {
+      doctorId: parsed.data.doctorId,
+      scheduledAt,
+      durationMinutes: parsed.data.durationMinutes,
+      excludeId: parsed.data.id,
+    });
+    if (overlap.length > 0) return { overlap };
+  }
+
+  const { error } = await supabase
+    .from("appointments")
+    .update({
+      doctor_id: parsed.data.doctorId,
+      service_id: parsed.data.serviceId,
+      scheduled_at: scheduledAt.toISOString(),
+      duration_minutes: parsed.data.durationMinutes,
+      status: parsed.data.status,
+      notes: parsed.data.notes || null,
+    })
+    .eq("id", parsed.data.id);
+
+  if (error) {
+    console.error("[updateAppointment] Supabase error:", error.message);
+    return { error: "No se pudo actualizar la cita." };
+  }
+
+  revalidatePath("/agenda");
+  return { success: true };
+}
+
+/** Reagendado rápido por arrastre en el calendario: solo cambia scheduled_at. */
+export async function rescheduleAppointment(
   id: string,
-  status: AppointmentStatus,
-): Promise<{ error?: string }> {
+  scheduledAtISO: string,
+  force = false,
+): Promise<{ error?: string; overlap?: OverlapConflict[] }> {
   await requireRole(SCHEDULING_ROLES);
   const supabase = await createClient();
 
-  const { error } = await supabase.from("appointments").update({ status }).eq("id", id);
+  if (!force) {
+    const { data: current } = await supabase
+      .from("appointments")
+      .select("doctor_id, duration_minutes")
+      .eq("id", id)
+      .single();
+
+    if (current?.doctor_id) {
+      const overlap = await findOverlaps(supabase, {
+        doctorId: current.doctor_id,
+        scheduledAt: new Date(scheduledAtISO),
+        durationMinutes: current.duration_minutes,
+        excludeId: id,
+      });
+      if (overlap.length > 0) return { overlap };
+    }
+  }
+
+  const { error } = await supabase
+    .from("appointments")
+    .update({ scheduled_at: scheduledAtISO })
+    .eq("id", id);
 
   if (error) return { error: error.message };
 

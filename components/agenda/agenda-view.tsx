@@ -1,46 +1,30 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition, useRef } from "react";
+import { motion } from "motion/react";
 import {
   listAppointments,
   type Appointment,
   type Service,
   type DoctorOption,
 } from "@/app/actions/appointments";
-import {
-  clinicToday,
-  addDays,
-  addMonths,
-  startOfWeek,
-  startOfMonth,
-  toClinicDateKey,
-  formatClinicDateLong,
-  formatClinicMonthLabel,
-} from "@/lib/clinic-time";
+import { clinicToday, toClinicDateKey } from "@/lib/clinic-time";
 import { Button } from "@/components/ui/button";
-import { AgendaDayView } from "./agenda-day-view";
-import { AgendaWeekView } from "./agenda-week-view";
-import { AgendaMonthView } from "./agenda-month-view";
-import { NewAppointmentDialog } from "./new-appointment-dialog";
-import { DayDetailDialog } from "./day-detail-dialog";
+import {
+  FullCalendarView,
+  type CalendarViewName,
+  type CalendarApiHandle,
+} from "./full-calendar-view";
+import { AppointmentDialog } from "./appointment-dialog";
 
-type ViewMode = "day" | "week" | "month";
+type ViewMode = "day" | "week" | "month" | "list";
 
-const VIEW_TABS: { value: ViewMode; label: string }[] = [
-  { value: "day", label: "Día" },
-  { value: "week", label: "Semana" },
-  { value: "month", label: "Mes" },
+const VIEW_TABS: { value: ViewMode; label: string; fcView: CalendarViewName }[] = [
+  { value: "day", label: "Día", fcView: "timeGridDay" },
+  { value: "week", label: "Semana", fcView: "timeGridWeek" },
+  { value: "month", label: "Mes", fcView: "dayGridMonth" },
+  { value: "list", label: "Lista", fcView: "listMonth" },
 ];
-
-function rangeFor(view: ViewMode, anchor: Date): { from: Date; to: Date } {
-  if (view === "day") return { from: anchor, to: addDays(anchor, 1) };
-  if (view === "week") {
-    const from = startOfWeek(anchor);
-    return { from, to: addDays(from, 7) };
-  }
-  const from = startOfWeek(startOfMonth(anchor));
-  return { from, to: addDays(from, 42) };
-}
 
 export function AgendaView({
   initialAppointments,
@@ -52,52 +36,53 @@ export function AgendaView({
   doctors: DoctorOption[];
 }) {
   const [view, setView] = useState<ViewMode>("day");
-  const [anchor, setAnchor] = useState<Date>(() => clinicToday());
   const [appointments, setAppointments] = useState<Appointment[]>(initialAppointments);
+  const [title, setTitle] = useState("");
+  const [range, setRange] = useState<{ startISO: string; endISO: string } | null>(null);
   const [pending, startTransition] = useTransition();
-  const [newApptOpen, setNewApptOpen] = useState(false);
-  const [dayDetail, setDayDetail] = useState<{ dateKey: string; appointments: Appointment[] } | null>(
-    null,
+  const calendarApi = useRef<CalendarApiHandle>(null);
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogKey, setDialogKey] = useState(0);
+  const [editing, setEditing] = useState<Appointment | undefined>(undefined);
+  const [createInput, setCreateInput] = useState<{ date: string; time: string } | undefined>(
+    undefined,
   );
 
-  useEffect(() => {
-    const { from, to } = rangeFor(view, anchor);
+  function reload(startISO: string, endISO: string) {
     startTransition(async () => {
-      const data = await listAppointments(from.toISOString(), to.toISOString());
-      setAppointments(data);
-    });
-  }, [view, anchor]);
-
-  function reload() {
-    const { from, to } = rangeFor(view, anchor);
-    startTransition(async () => {
-      const data = await listAppointments(from.toISOString(), to.toISOString());
+      const data = await listAppointments(startISO, endISO);
       setAppointments(data);
     });
   }
 
-  function goPrev() {
-    setAnchor((prev) =>
-      view === "day" ? addDays(prev, -1) : view === "week" ? addDays(prev, -7) : addMonths(prev, -1),
-    );
+  function handleDatesSet(info: { title: string; startISO: string; endISO: string }) {
+    setTitle(info.title);
+    setRange({ startISO: info.startISO, endISO: info.endISO });
+    reload(info.startISO, info.endISO);
   }
 
-  function goNext() {
-    setAnchor((prev) =>
-      view === "day" ? addDays(prev, 1) : view === "week" ? addDays(prev, 7) : addMonths(prev, 1),
-    );
+  function handleChanged() {
+    if (range) reload(range.startISO, range.endISO);
   }
 
-  const periodLabel =
-    view === "day"
-      ? formatClinicDateLong(anchor)
-      : view === "week"
-        ? `Semana del ${formatClinicDateLong(startOfWeek(anchor))}`
-        : formatClinicMonthLabel(anchor);
+  function openCreateDialog(input?: { date: string; time: string }) {
+    setEditing(undefined);
+    setCreateInput(input ?? { date: toClinicDateKey(clinicToday()), time: "" });
+    setDialogKey((k) => k + 1);
+    setDialogOpen(true);
+  }
 
-  const dayAppointments = appointments.filter(
-    (a) => toClinicDateKey(new Date(a.scheduled_at)) === toClinicDateKey(anchor),
-  );
+  function openEditDialog(appointment: Appointment) {
+    setEditing(appointment);
+    setDialogKey((k) => k + 1);
+    setDialogOpen(true);
+  }
+
+  function switchView(next: ViewMode) {
+    setView(next);
+    calendarApi.current?.changeView(VIEW_TABS.find((t) => t.value === next)!.fcView);
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -107,14 +92,19 @@ export function AgendaView({
             <button
               key={tab.value}
               type="button"
-              onClick={() => setView(tab.value)}
-              className={`rounded-xl px-4.5 py-2 text-sm font-semibold transition-colors ${
-                view === tab.value
-                  ? "bg-[image:var(--gradient-primary)] text-white"
-                  : "text-foreground hover:bg-accent"
+              onClick={() => switchView(tab.value)}
+              className={`relative rounded-xl px-4.5 py-2 text-sm font-semibold transition-colors ${
+                view === tab.value ? "text-white" : "text-foreground hover:bg-accent"
               }`}
             >
-              {tab.label}
+              {view === tab.value && (
+                <motion.div
+                  layoutId="agenda-view-tab-pill"
+                  className="absolute inset-0 rounded-xl bg-[image:var(--gradient-primary)]"
+                  transition={{ type: "spring", stiffness: 500, damping: 36 }}
+                />
+              )}
+              <span className="relative z-10">{tab.label}</span>
             </button>
           ))}
         </div>
@@ -122,57 +112,56 @@ export function AgendaView({
         <div className="flex items-center gap-3.5">
           <button
             type="button"
-            onClick={goPrev}
+            onClick={() => calendarApi.current?.prev()}
             className="flex size-8 items-center justify-center rounded-[10px] border border-white/80 bg-white/60 font-bold text-primary hover:bg-white/80"
           >
             ‹
           </button>
-          <div className="min-w-[180px] text-center font-heading text-[15px] font-semibold text-foreground">
-            {periodLabel}
+          <div className="min-w-[180px] text-center font-heading text-[15px] font-semibold text-foreground capitalize">
+            {title}
           </div>
           <button
             type="button"
-            onClick={goNext}
+            onClick={() => calendarApi.current?.next()}
             className="flex size-8 items-center justify-center rounded-[10px] border border-white/80 bg-white/60 font-bold text-primary hover:bg-white/80"
           >
             ›
           </button>
+          <button
+            type="button"
+            onClick={() => calendarApi.current?.today()}
+            className="rounded-[10px] border border-white/80 bg-white/60 px-3 py-1.5 text-xs font-bold text-primary hover:bg-white/80"
+          >
+            Hoy
+          </button>
         </div>
 
-        <Button onClick={() => setNewApptOpen(true)}>+ Nueva cita</Button>
+        <Button onClick={() => openCreateDialog()}>+ Nueva cita</Button>
       </div>
 
       {pending && <p className="text-xs text-muted-foreground">Actualizando...</p>}
 
-      {view === "day" && <AgendaDayView appointments={dayAppointments} />}
-      {view === "week" && (
-        <AgendaWeekView weekStart={startOfWeek(anchor)} appointments={appointments} />
-      )}
-      {view === "month" && (
-        <AgendaMonthView
-          monthAnchor={anchor}
-          appointments={appointments}
-          onSelectDay={(dateKey, dayAppts) => setDayDetail({ dateKey, appointments: dayAppts })}
-        />
-      )}
-
-      <NewAppointmentDialog
-        open={newApptOpen}
-        onOpenChange={setNewApptOpen}
-        services={services}
-        doctors={doctors}
-        defaultDate={toClinicDateKey(anchor)}
-        onCreated={reload}
+      <FullCalendarView
+        ref={calendarApi}
+        appointments={appointments}
+        initialView="timeGridDay"
+        onDatesSet={handleDatesSet}
+        onRequestCreate={(input) => openCreateDialog(input)}
+        onRequestEdit={openEditDialog}
+        onChanged={handleChanged}
       />
 
-      {dayDetail && (
-        <DayDetailDialog
-          open={!!dayDetail}
-          onOpenChange={(open) => !open && setDayDetail(null)}
-          dateLabel={dayDetail.dateKey}
-          appointments={dayDetail.appointments}
-        />
-      )}
+      <AppointmentDialog
+        key={dialogKey}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        appointment={editing}
+        services={services}
+        doctors={doctors}
+        defaultDate={createInput?.date}
+        defaultTime={createInput?.time}
+        onSaved={handleChanged}
+      />
     </div>
   );
 }

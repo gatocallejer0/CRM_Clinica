@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { motion } from "motion/react";
 import type { PatientDetail } from "@/app/actions/clinical-records";
 import type { DoctorOption } from "@/app/actions/appointments";
 import { Card } from "@/components/ui/card";
@@ -63,13 +64,18 @@ export function PatientDetailPane({
               key={t.value}
               type="button"
               onClick={() => setTab(t.value)}
-              className={`rounded-xl px-3.5 py-1.5 text-[13px] font-semibold whitespace-nowrap transition-colors ${
-                tab === t.value
-                  ? "bg-[image:var(--gradient-primary)] text-white"
-                  : "text-foreground hover:bg-accent"
+              className={`relative rounded-xl px-3.5 py-1.5 text-[13px] font-semibold whitespace-nowrap transition-colors ${
+                tab === t.value ? "text-white" : "text-foreground hover:bg-accent"
               }`}
             >
-              {t.label}
+              {tab === t.value && (
+                <motion.div
+                  layoutId="patient-detail-tab-pill"
+                  className="absolute inset-0 rounded-xl bg-[image:var(--gradient-primary)]"
+                  transition={{ type: "spring", stiffness: 500, damping: 36 }}
+                />
+              )}
+              <span className="relative z-10">{t.label}</span>
             </button>
           ))}
         </div>

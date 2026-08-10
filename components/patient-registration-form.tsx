@@ -15,9 +15,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Field, FormStagger } from "@/components/ui/field";
 import {
   Select,
   SelectContent,
@@ -39,7 +39,7 @@ function FieldInput({ field }: { field: FormField }) {
     case "select":
       return (
         <Select name={field.key} required={field.required}>
-          <SelectTrigger className="w-full">
+          <SelectTrigger id={field.key} className="w-full">
             <SelectValue placeholder="Selecciona una opción" />
           </SelectTrigger>
           <SelectContent>
@@ -60,10 +60,9 @@ function FieldInput({ field }: { field: FormField }) {
 
 function FieldGroup({ field }: { field: FormField }) {
   return (
-    <div className="flex flex-col gap-2">
-      <Label htmlFor={field.key}>{field.label}</Label>
+    <Field label={field.label} htmlFor={field.key} required={field.required}>
       <FieldInput field={field} />
-    </div>
+    </Field>
   );
 }
 
@@ -104,14 +103,15 @@ export function PatientRegistrationForm({ fields }: { fields: FormField[] }) {
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="email">Correo electrónico</Label>
-            <Input id="email" name="email" type="email" required />
-          </div>
+          <FormStagger className="flex flex-col gap-4">
+            <Field label="Correo electrónico" htmlFor="email" required>
+              <Input id="email" name="email" type="email" required />
+            </Field>
 
-          {generalFields.map((field) => (
-            <FieldGroup key={field.id} field={field} />
-          ))}
+            {generalFields.map((field) => (
+              <FieldGroup key={field.id} field={field} />
+            ))}
+          </FormStagger>
         </CardContent>
       </Card>
 
@@ -121,9 +121,11 @@ export function PatientRegistrationForm({ fields }: { fields: FormField[] }) {
             <CardTitle>Antecedentes médicos</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
-            {medicalFields.map((field) => (
-              <FieldGroup key={field.id} field={field} />
-            ))}
+            <FormStagger className="flex flex-col gap-4">
+              {medicalFields.map((field) => (
+                <FieldGroup key={field.id} field={field} />
+              ))}
+            </FormStagger>
           </CardContent>
         </Card>
       )}
@@ -134,7 +136,7 @@ export function PatientRegistrationForm({ fields }: { fields: FormField[] }) {
         </Alert>
       )}
 
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" disabled={pending} loading={pending}>
         {pending ? "Enviando..." : "Enviar registro"}
       </Button>
     </form>

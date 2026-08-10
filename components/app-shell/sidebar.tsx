@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { motion } from "motion/react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { logout } from "@/app/actions/auth";
 import { GENERAL_NAV, ADMIN_NAV, type NavItem } from "./nav-config";
@@ -29,14 +30,19 @@ function NavLink({
     <Link
       href={item.href}
       title={item.label}
-      className={`group flex items-center gap-2.5 rounded-xl px-2.5 py-2.5 text-sm transition-[background-color,transform] duration-150 active:scale-[0.96] ${
-        active
-          ? "bg-[image:var(--gradient-primary)] font-semibold text-white"
-          : "font-medium text-foreground hover:bg-accent"
+      className={`group relative flex items-center gap-2.5 overflow-hidden rounded-xl px-2.5 py-2.5 text-sm transition-[color,transform] duration-150 active:scale-[0.96] ${
+        active ? "font-semibold text-white" : "font-medium text-foreground hover:bg-accent"
       }`}
     >
+      {active && (
+        <motion.div
+          layoutId="sidebar-active-pill"
+          className="absolute inset-0 bg-[image:var(--gradient-primary)]"
+          transition={{ type: "spring", stiffness: 500, damping: 36 }}
+        />
+      )}
       <span
-        className={`flex size-7 shrink-0 items-center justify-center rounded-[9px] ${
+        className={`relative z-10 flex size-7 shrink-0 items-center justify-center rounded-[9px] ${
           active ? "bg-white/20" : "bg-accent"
         }`}
       >
@@ -45,7 +51,7 @@ function NavLink({
           strokeWidth={1.75}
         />
       </span>
-      {expanded && <span className="truncate">{item.label}</span>}
+      {expanded && <span className="relative z-10 truncate">{item.label}</span>}
     </Link>
   );
 }
@@ -66,7 +72,7 @@ export function Sidebar({
   onToggleCollapsed: () => void;
 }) {
   const expanded = isDesktop ? !collapsed : true;
-  const width = isDesktop ? (collapsed ? "76px" : "252px") : "252px";
+  const width = isDesktop ? (collapsed ? "76px" : "272px") : "272px";
 
   const generalItems = GENERAL_NAV.filter((item) => item.roles.includes(profile.role.name));
   const adminItems = ADMIN_NAV.filter((item) => item.roles.includes(profile.role.name));

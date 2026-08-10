@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { KpiGrid } from "@/components/dashboard/kpi-grid";
 
 export default async function DashboardPage() {
   const profile = await requireRole(["Admin", "Doctor", "Recepción"]);
@@ -42,18 +43,7 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 min-[861px]:grid-cols-4">
-        {kpis.map((kpi) => (
-          <Card key={kpi.label}>
-            <CardContent className="px-5">
-              <div className="text-xs font-semibold text-muted-foreground">{kpi.label}</div>
-              <div className="mt-2 font-heading text-2xl font-bold text-foreground">
-                {kpi.value}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <KpiGrid kpis={kpis} />
 
       {isAdmin && (
         <div className="grid grid-cols-1 gap-4 min-[640px]:grid-cols-3">

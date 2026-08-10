@@ -9,6 +9,17 @@
 const CLINIC_TZ = "America/Guatemala";
 const CLINIC_UTC_OFFSET = "-06:00";
 
+/**
+ * Node (SSR) y los navegadores (CSR) usan builds de ICU distintos: para
+ * es-GT con hour12, Node inserta un espacio angosto (U+202F) antes de
+ * "a. m."/"p. m." mientras Chrome usa un espacio normal. Son visualmente
+ * idénticos pero bytes distintos, lo que React detecta como error de
+ * hidratación. Normalizamos a espacio normal en ambos lados.
+ */
+function normalizeSpaces(text: string): string {
+  return text.replace(/[  ]/g, " ");
+}
+
 /** Combina un date input (yyyy-mm-dd) y un time input (HH:mm) en un Date real. */
 export function combineClinicDateTime(dateStr: string, timeStr: string): Date {
   return new Date(`${dateStr}T${timeStr}:00${CLINIC_UTC_OFFSET}`);
@@ -26,39 +37,61 @@ export function toClinicDateKey(date: Date): string {
   return `${get("year")}-${get("month")}-${get("day")}`;
 }
 
-export function formatClinicTime(date: Date): string {
-  return new Intl.DateTimeFormat("es-GT", {
+/** "HH:mm" (24h) en hora de Guatemala — formato que espera <input type="time">. */
+export function toClinicTimeKey(date: Date): string {
+  const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: CLINIC_TZ,
     hour: "2-digit",
     minute: "2-digit",
-    hour12: true,
-  }).format(date);
+    hour12: false,
+  }).formatToParts(date);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${get("hour")}:${get("minute")}`;
+}
+
+export function formatClinicTime(date: Date): string {
+  return normalizeSpaces(
+    new Intl.DateTimeFormat("es-GT", {
+      timeZone: CLINIC_TZ,
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    }).format(date),
+  );
 }
 
 export function formatClinicWeekday(date: Date, style: "short" | "long" = "short"): string {
-  return new Intl.DateTimeFormat("es-GT", { timeZone: CLINIC_TZ, weekday: style }).format(date);
+  return normalizeSpaces(
+    new Intl.DateTimeFormat("es-GT", { timeZone: CLINIC_TZ, weekday: style }).format(date),
+  );
 }
 
 export function formatClinicDayNumber(date: Date): string {
-  return new Intl.DateTimeFormat("es-GT", { timeZone: CLINIC_TZ, day: "numeric" }).format(date);
+  return normalizeSpaces(
+    new Intl.DateTimeFormat("es-GT", { timeZone: CLINIC_TZ, day: "numeric" }).format(date),
+  );
 }
 
 export function formatClinicMonthLabel(date: Date): string {
-  const label = new Intl.DateTimeFormat("es-GT", {
-    timeZone: CLINIC_TZ,
-    month: "long",
-    year: "numeric",
-  }).format(date);
+  const label = normalizeSpaces(
+    new Intl.DateTimeFormat("es-GT", {
+      timeZone: CLINIC_TZ,
+      month: "long",
+      year: "numeric",
+    }).format(date),
+  );
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
 export function formatClinicDateLong(date: Date): string {
-  const label = new Intl.DateTimeFormat("es-GT", {
-    timeZone: CLINIC_TZ,
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  }).format(date);
+  const label = normalizeSpaces(
+    new Intl.DateTimeFormat("es-GT", {
+      timeZone: CLINIC_TZ,
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+    }).format(date),
+  );
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 

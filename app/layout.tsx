@@ -1,16 +1,21 @@
 import type { Metadata } from "next";
-import { Poppins, Manrope } from "next/font/google";
+import { Montserrat, Jost } from "next/font/google";
 import "./globals.css";
 
-const poppins = Poppins({
-  variable: "--font-poppins",
-  weight: ["500", "600", "700"],
+// Tipografía primaria de marca (guía MAR branding & design).
+const montserrat = Montserrat({
+  variable: "--font-montserrat",
+  weight: ["400", "500", "600", "700"],
+  style: ["normal", "italic"],
   subsets: ["latin"],
 });
 
-const manrope = Manrope({
-  variable: "--font-manrope",
-  weight: ["400", "500", "600", "700"],
+// "Avant" (Avant Garde Gothic) es una fuente comercial, no disponible en
+// Google Fonts. Jost es la alternativa libre más cercana: misma familia
+// geométrica de formas circulares (Kabel/Avant Garde).
+const jost = Jost({
+  variable: "--font-jost",
+  weight: ["500", "600", "700"],
   subsets: ["latin"],
 });
 
@@ -27,7 +32,7 @@ export default function RootLayout({
   return (
     <html
       lang="es"
-      className={`${poppins.variable} ${manrope.variable} h-full antialiased`}
+      className={`${montserrat.variable} ${jost.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-[image:var(--gradient-bg)] bg-fixed">
         {children}
