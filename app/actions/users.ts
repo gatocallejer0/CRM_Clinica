@@ -76,7 +76,7 @@ const CreateUserSchema = z.object({
   roleId: z.string().uuid({ error: "Selecciona un rol." }),
 });
 
-export type CreateUserState =
+export type UserFormState =
   | {
       error?: string;
       success?: boolean;
@@ -89,9 +89,9 @@ export type CreateUserState =
  * RLS, so the caller's role MUST be verified first via requireRole.
  */
 export async function createUser(
-  _prevState: CreateUserState,
+  _prevState: UserFormState,
   formData: FormData,
-): Promise<CreateUserState> {
+): Promise<UserFormState> {
   await requireRole(["Admin"]);
 
   const validatedFields = CreateUserSchema.safeParse({
@@ -130,6 +130,64 @@ export async function createUser(
     // Roll back the auth user so we don't leave an orphaned account.
     await admin.auth.admin.deleteUser(created.user.id);
     return { error: profileError.message };
+  }
+
+  revalidatePath("/admin/usuarios");
+  return { success: true };
+}
+
+const UpdateUserSchema = z.object({
+  id: z.string().uuid(),
+  fullName: z.string().min(2, { error: "El nombre es muy corto." }).trim(),
+  email: z.email({ error: "Ingresa un correo válido." }),
+  roleId: z.string().uuid({ error: "Selecciona un rol." }),
+  active: z.enum(["true", "false"]),
+});
+
+/**
+ * Updates a profile's name/role/active flag and the auth user's email.
+ * Admin-only. Uses the service_role key, so the caller's role MUST be
+ * verified first via requireRole.
+ */
+export async function updateUser(
+  _prevState: UserFormState,
+  formData: FormData,
+): Promise<UserFormState> {
+  const profile = await requireRole(["Admin"]);
+
+  const validatedFields = UpdateUserSchema.safeParse({
+    id: formData.get("id"),
+    fullName: formData.get("fullName"),
+    email: formData.get("email"),
+    roleId: formData.get("roleId"),
+    active: formData.get("active") ?? "false",
+  });
+
+  if (!validatedFields.success) {
+    return { error: "Revisa los datos del formulario." };
+  }
+
+  const { id, fullName, email, roleId, active } = validatedFields.data;
+
+  if (id === profile.id && active === "false") {
+    return { error: "No puedes desactivar tu propia cuenta." };
+  }
+
+  const admin = createAdminClient();
+
+  const { error: profileError } = await admin
+    .from("profiles")
+    .update({ full_name: fullName, role_id: roleId, active: active === "true" })
+    .eq("id", id);
+
+  if (profileError) {
+    return { error: profileError.message };
+  }
+
+  const { error: authError } = await admin.auth.admin.updateUserById(id, { email });
+
+  if (authError) {
+    return { error: authError.message };
   }
 
   revalidatePath("/admin/usuarios");
