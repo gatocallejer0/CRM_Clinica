@@ -65,25 +65,25 @@ export function ExpedienteView({
             type="button"
             onClick={() => selectPatient(p.id)}
             className={`flex items-center gap-2.5 rounded-xl px-2.5 py-2.5 text-left transition-colors ${
-              selectedId === p.id
-                ? "bg-[image:var(--gradient-primary)] text-white"
-                : "hover:bg-accent"
+              selectedId === p.id ? "bg-primary/10" : "hover:bg-accent"
             }`}
           >
             <span
               className={`flex size-9 shrink-0 items-center justify-center rounded-full font-heading text-xs font-bold text-white ${
-                selectedId === p.id ? "bg-white/25" : "bg-[image:var(--gradient-primary)]"
+                selectedId === p.id ? "bg-[image:var(--gradient-primary)]" : "bg-[image:var(--gradient-neutral)]"
               }`}
             >
               {getInitials(p.full_name)}
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-semibold">{p.full_name}</span>
               <span
-                className={`block truncate text-xs ${
-                  selectedId === p.id ? "text-white/80" : "text-muted-foreground"
+                className={`block truncate text-sm font-semibold ${
+                  selectedId === p.id ? "text-primary" : "text-foreground"
                 }`}
               >
+                {p.full_name}
+              </span>
+              <span className="block truncate text-xs text-muted-foreground">
                 {p.last_visit ? `Última visita: ${formatDateEs(p.last_visit)}` : "Sin visitas"}
               </span>
             </span>

@@ -31,23 +31,23 @@ function NavLink({
       href={item.href}
       title={item.label}
       className={`group relative flex items-center gap-2.5 overflow-hidden rounded-xl px-2.5 py-2.5 text-sm transition-[color,transform] duration-150 active:scale-[0.96] ${
-        active ? "font-semibold text-white" : "font-medium text-foreground hover:bg-accent"
+        active ? "font-semibold text-primary" : "font-medium text-foreground hover:bg-accent"
       }`}
     >
       {active && (
         <motion.div
           layoutId="sidebar-active-pill"
-          className="absolute inset-0 bg-[image:var(--gradient-primary)]"
+          className="absolute inset-0 rounded-xl bg-primary/10"
           transition={{ type: "spring", stiffness: 500, damping: 36 }}
         />
       )}
       <span
         className={`relative z-10 flex size-7 shrink-0 items-center justify-center rounded-[9px] ${
-          active ? "bg-white/20" : "bg-accent"
+          active ? "bg-primary/15" : "bg-accent"
         }`}
       >
         <Icon
-          className={`size-3.5 ${active ? "text-white" : "text-primary"}`}
+          className={`size-3.5 ${active ? "text-primary" : "text-muted-foreground"}`}
           strokeWidth={1.75}
         />
       </span>
@@ -152,7 +152,7 @@ export function Sidebar({
       </nav>
 
       <div className="flex items-center gap-2.5 border-t border-[rgba(200,160,170,0.3)] pt-3.5">
-        <div className="flex size-[38px] shrink-0 items-center justify-center rounded-full bg-[image:var(--gradient-primary)] font-heading text-[13px] font-bold text-white">
+        <div className="flex size-[38px] shrink-0 items-center justify-center rounded-full bg-[image:var(--gradient-neutral)] font-heading text-[13px] font-bold text-white">
           {getInitials(profile.full_name)}
         </div>
         {expanded && (

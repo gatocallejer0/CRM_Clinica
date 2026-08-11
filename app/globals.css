@@ -66,8 +66,8 @@
   --accent: oklch(90.2% 0.026 5.7 / 75%);
   --accent-foreground: oklch(30% 0.02 14);
   --destructive: oklch(50% 0.13 25);
-  --border: oklch(80% 0.03 14 / 45%);
-  --input: oklch(80% 0.03 14 / 45%);
+  --border: oklch(80% 0.012 265 / 45%);
+  --input: oklch(80% 0.012 265 / 45%);
   --ring: oklch(67.5% 0.156 10.3 / 50%);
   --chart-1: oklch(67.5% 0.156 10.3);
   --chart-2: oklch(71.9% 0.054 14);
@@ -87,10 +87,15 @@
   /* Glassmorfismo: fondo, gradientes y sombras */
   --gradient-bg: linear-gradient(160deg, oklch(98.5% 0.01 5.7), oklch(98% 0.012 30));
   --gradient-primary: linear-gradient(135deg, oklch(67.5% 0.156 10.3), oklch(71.9% 0.054 14));
-  --shadow-glass: 0 10px 28px -4px rgba(196, 151, 154, 0.16), inset 0 1px 0 0 rgba(255, 255, 255, 0.6);
-  --shadow-glass-lg: 0 16px 34px -6px rgba(196, 151, 154, 0.24);
-  --shadow-button: 0 8px 18px oklch(67.5% 0.156 10.3 / 25%);
-  --shadow-button-hover: 0 12px 26px oklch(67.5% 0.156 10.3 / 38%);
+  /* Gradiente neutro (familia gris-azulado de marca) para elementos
+     decorativos que no son una acción principal ni un estado seleccionado
+     (avatares, puntos de línea de tiempo) — el rosa vivo se reserva para
+     CTAs y "esto está activo/seleccionado", si no pierde peso como acento. */
+  --gradient-neutral: linear-gradient(135deg, oklch(58% 0.03 270), oklch(48% 0.035 262));
+  --shadow-glass: 0 10px 28px -4px rgba(140, 142, 158, 0.14), inset 0 1px 0 0 rgba(255, 255, 255, 0.6);
+  --shadow-glass-lg: 0 16px 34px -6px rgba(140, 142, 158, 0.2);
+  --shadow-button: 0 8px 18px oklch(67.5% 0.156 10.3 / 20%);
+  --shadow-button-hover: 0 12px 26px oklch(67.5% 0.156 10.3 / 32%);
 
   /* Colores de estado (citas / pagos) — semánticos, no ligados a la marca */
   --status-confirmed-fg: oklch(42% 0.1 150);
@@ -107,7 +112,7 @@
      marcador/texto pequeño (los swatches originales son muy pastel). */
   --type-prenatal: oklch(67.5% 0.156 10.3);
   --type-general: oklch(52% 0.05 270);
-  --type-seguimiento: oklch(50% 0.09 14);
+  --type-seguimiento: oklch(48% 0.04 265);
 }
 
 .dark {
@@ -145,10 +150,11 @@
 
   --gradient-bg: linear-gradient(160deg, oklch(0.16 0.012 14), oklch(0.13 0.014 5.7));
   --gradient-primary: linear-gradient(135deg, oklch(67.5% 0.156 10.3), oklch(71.9% 0.054 14));
+  --gradient-neutral: linear-gradient(135deg, oklch(62% 0.03 270), oklch(50% 0.035 262));
   --shadow-glass: 0 10px 28px -4px rgba(0, 0, 0, 0.4), inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
   --shadow-glass-lg: 0 16px 34px -6px rgba(0, 0, 0, 0.5);
-  --shadow-button: 0 8px 18px oklch(67.5% 0.156 10.3 / 35%);
-  --shadow-button-hover: 0 12px 26px oklch(67.5% 0.156 10.3 / 48%);
+  --shadow-button: 0 8px 18px oklch(67.5% 0.156 10.3 / 28%);
+  --shadow-button-hover: 0 12px 26px oklch(67.5% 0.156 10.3 / 40%);
 
   --status-confirmed-fg: oklch(80% 0.1 150);
   --status-confirmed-bg: oklch(30% 0.06 150);
@@ -161,7 +167,7 @@
 
   --type-prenatal: oklch(75% 0.13 10.3);
   --type-general: oklch(78% 0.03 270);
-  --type-seguimiento: oklch(76% 0.05 14);
+  --type-seguimiento: oklch(72% 0.04 265);
 }
 
 @layer base {

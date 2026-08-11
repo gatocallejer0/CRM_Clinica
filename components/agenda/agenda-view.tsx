@@ -94,13 +94,13 @@ export function AgendaView({
               type="button"
               onClick={() => switchView(tab.value)}
               className={`relative rounded-xl px-4.5 py-2 text-sm font-semibold transition-colors ${
-                view === tab.value ? "text-white" : "text-foreground hover:bg-accent"
+                view === tab.value ? "text-primary" : "text-foreground hover:bg-accent"
               }`}
             >
               {view === tab.value && (
                 <motion.div
                   layoutId="agenda-view-tab-pill"
-                  className="absolute inset-0 rounded-xl bg-[image:var(--gradient-primary)]"
+                  className="absolute inset-0 rounded-xl bg-primary/10"
                   transition={{ type: "spring", stiffness: 500, damping: 36 }}
                 />
               )}

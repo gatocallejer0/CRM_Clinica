@@ -45,7 +45,18 @@ export default async function UsuariosPage() {
                     <Badge variant="secondary">{user.role?.name ?? "—"}</Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={user.active ? "default" : "outline"}>
+                    <Badge
+                      variant="outline"
+                      className={user.active ? "border-transparent" : undefined}
+                      style={
+                        user.active
+                          ? {
+                              color: "var(--status-confirmed-fg)",
+                              backgroundColor: "var(--status-confirmed-bg)",
+                            }
+                          : undefined
+                      }
+                    >
                       {user.active ? "Activo" : "Inactivo"}
                     </Badge>
                   </TableCell>

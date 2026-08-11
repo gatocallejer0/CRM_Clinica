@@ -43,7 +43,7 @@ export function PatientDetailPane({
   return (
     <div className={`flex flex-col gap-4 transition-opacity ${pending ? "opacity-60" : ""}`}>
       <Card className="flex-row items-center gap-4 p-5">
-        <div className="flex size-14 shrink-0 items-center justify-center rounded-full bg-[image:var(--gradient-primary)] font-heading text-lg font-bold text-white">
+        <div className="flex size-14 shrink-0 items-center justify-center rounded-full bg-[image:var(--gradient-neutral)] font-heading text-lg font-bold text-white">
           {getInitials(patient.full_name)}
         </div>
         <div className="min-w-0 flex-1">
@@ -65,13 +65,13 @@ export function PatientDetailPane({
               type="button"
               onClick={() => setTab(t.value)}
               className={`relative rounded-xl px-3.5 py-1.5 text-[13px] font-semibold whitespace-nowrap transition-colors ${
-                tab === t.value ? "text-white" : "text-foreground hover:bg-accent"
+                tab === t.value ? "text-primary" : "text-foreground hover:bg-accent"
               }`}
             >
               {tab === t.value && (
                 <motion.div
                   layoutId="patient-detail-tab-pill"
-                  className="absolute inset-0 rounded-xl bg-[image:var(--gradient-primary)]"
+                  className="absolute inset-0 rounded-xl bg-primary/10"
                   transition={{ type: "spring", stiffness: 500, damping: 36 }}
                 />
               )}
@@ -129,7 +129,7 @@ export function PatientDetailPane({
             return (
               <div key={r.id} className="relative flex gap-4 pl-1">
                 <div className="flex flex-col items-center">
-                  <div className="mt-1.5 size-[9px] shrink-0 rounded-full bg-[image:var(--gradient-primary)]" />
+                  <div className="mt-1.5 size-[9px] shrink-0 rounded-full bg-[image:var(--gradient-neutral)]" />
                   {i < patient.records.length - 1 && <div className="w-px flex-1 bg-border" />}
                 </div>
                 <div className="flex-1 pb-5">

@@ -147,7 +147,7 @@ export function AppointmentDialog({
                       onClick={() => setPatientMode("existing")}
                       className={`flex-1 rounded-[7px] py-1.5 text-xs font-semibold transition-colors ${
                         patientMode === "existing"
-                          ? "bg-[image:var(--gradient-primary)] text-white"
+                          ? "bg-primary/12 text-primary"
                           : "text-muted-foreground hover:bg-accent"
                       }`}
                     >
@@ -158,7 +158,7 @@ export function AppointmentDialog({
                       onClick={() => setPatientMode("new")}
                       className={`flex-1 rounded-[7px] py-1.5 text-xs font-semibold transition-colors ${
                         patientMode === "new"
-                          ? "bg-[image:var(--gradient-primary)] text-white"
+                          ? "bg-primary/12 text-primary"
                           : "text-muted-foreground hover:bg-accent"
                       }`}
                     >
