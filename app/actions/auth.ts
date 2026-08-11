@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import * as z from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { rateLimit, getClientIp, RateLimitError } from "@/lib/rate-limit";
 
 const LoginSchema = z.object({
   email: z.email({ error: "Ingresa un correo válido." }),
@@ -28,6 +29,13 @@ export async function login(
 
   if (!validatedFields.success) {
     return { error: "Revisa el correo y la contraseña." };
+  }
+
+  try {
+    rateLimit(`login:${await getClientIp()}`, { limit: 10, windowMs: 5 * 60_000 });
+  } catch (err) {
+    if (err instanceof RateLimitError) return { error: err.message };
+    throw err;
   }
 
   const { email, password, redirectTo } = validatedFields.data;

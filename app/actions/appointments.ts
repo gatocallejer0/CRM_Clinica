@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth/roles";
 import { createClient } from "@/lib/supabase/server";
 import { combineClinicDateTime, formatClinicTime } from "@/lib/clinic-time";
+import { rateLimit, getClientIp, RateLimitError } from "@/lib/rate-limit";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 const SCHEDULING_ROLES = ["Admin", "Doctor", "Recepción"];
@@ -137,6 +138,13 @@ export type PatientOption = {
 export async function searchPatients(query: string): Promise<PatientOption[]> {
   const trimmed = query.trim().replace(/[,()]/g, "");
   if (!trimmed) return [];
+
+  try {
+    rateLimit(`search-patients:${await getClientIp()}`, { limit: 60, windowMs: 60_000 });
+  } catch (err) {
+    if (err instanceof RateLimitError) return [];
+    throw err;
+  }
 
   const supabase = await createClient();
   const { data, error } = await supabase

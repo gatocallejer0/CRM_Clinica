@@ -2,6 +2,7 @@
 
 import * as z from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { rateLimit, getClientIp, RateLimitError } from "@/lib/rate-limit";
 
 const EmailSchema = z.email({ error: "Ingresa un correo válido." });
 
@@ -29,6 +30,13 @@ export async function registerPatient(
   const emailResult = EmailSchema.safeParse(formData.get("email"));
   if (!emailResult.success) {
     return { error: "Ingresa un correo válido." };
+  }
+
+  try {
+    rateLimit(`register-patient:${await getClientIp()}`, { limit: 5, windowMs: 10 * 60_000 });
+  } catch (err) {
+    if (err instanceof RateLimitError) return { error: err.message };
+    throw err;
   }
 
   const answers: Record<string, string> = {};
