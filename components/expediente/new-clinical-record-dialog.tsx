@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useMemo } from "react";
 import {
   createClinicalRecord,
   type CreateClinicalRecordState,
@@ -21,12 +21,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Field, FieldRow, FormStagger } from "@/components/ui/field";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Combobox,
+  ComboboxInputGroup,
+  ComboboxInput,
+  ComboboxClear,
+  ComboboxTrigger,
+  ComboboxPopup,
+  ComboboxList,
+  ComboboxItem,
+  ComboboxEmpty,
+} from "@/components/ui/combobox";
 
 export function NewClinicalRecordDialog({
   open,
@@ -47,6 +51,7 @@ export function NewClinicalRecordDialog({
     createClinicalRecord,
     undefined,
   );
+  const doctorNameById = useMemo(() => new Map(doctors.map((d) => [d.id, d.full_name])), [doctors]);
 
   useEffect(() => {
     if (state?.success) {
@@ -54,7 +59,7 @@ export function NewClinicalRecordDialog({
       onCreated();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state?.success]);
+  }, [state]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} disablePointerDismissal>
@@ -72,21 +77,27 @@ export function NewClinicalRecordDialog({
           <FormStagger className="flex flex-col gap-4">
             {showDoctorSelect && (
               <Field label="Doctora" htmlFor="doctorId">
-                <Select
+                <Combobox
+                  items={doctors.map((d) => d.id)}
+                  itemToStringLabel={(id: string) => doctorNameById.get(id) ?? ""}
                   name="doctorId"
-                  items={Object.fromEntries(doctors.map((d) => [d.id, d.full_name]))}
                 >
-                  <SelectTrigger id="doctorId" className="w-full">
-                    <SelectValue placeholder="Selecciona una doctora" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {doctors.map((d) => (
-                      <SelectItem key={d.id} value={d.id}>
-                        {d.full_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <ComboboxInputGroup>
+                    <ComboboxInput id="doctorId" placeholder="Busca una doctora..." />
+                    <ComboboxClear />
+                    <ComboboxTrigger />
+                  </ComboboxInputGroup>
+                  <ComboboxPopup>
+                    <ComboboxEmpty>Sin resultados.</ComboboxEmpty>
+                    <ComboboxList>
+                      {(id: string) => (
+                        <ComboboxItem key={id} value={id}>
+                          {doctorNameById.get(id)}
+                        </ComboboxItem>
+                      )}
+                    </ComboboxList>
+                  </ComboboxPopup>
+                </Combobox>
               </Field>
             )}
 

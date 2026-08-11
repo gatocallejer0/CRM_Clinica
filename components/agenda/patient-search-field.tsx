@@ -7,9 +7,13 @@ import { Input } from "@/components/ui/input";
 export function PatientSearchField({
   name,
   initialPatient,
+  required = true,
+  placeholder = "Buscar por nombre o correo...",
 }: {
   name: string;
   initialPatient?: PatientOption;
+  required?: boolean;
+  placeholder?: string;
 }) {
   const [query, setQuery] = useState(initialPatient?.full_name ?? "");
   const [results, setResults] = useState<PatientOption[]>([]);
@@ -42,13 +46,13 @@ export function PatientSearchField({
 
   return (
     <div className="relative">
-      <input type="hidden" name={name} value={selected?.id ?? ""} required />
+      <input type="hidden" name={name} value={selected?.id ?? ""} required={required} />
       <Input
         value={query}
         onChange={(e) => handleChange(e.target.value)}
         onFocus={() => results.length > 0 && setOpen(true)}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
-        placeholder="Buscar por nombre o correo..."
+        placeholder={placeholder}
         autoComplete="off"
       />
       {open && (

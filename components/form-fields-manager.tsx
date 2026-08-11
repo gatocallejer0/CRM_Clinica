@@ -25,12 +25,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Combobox,
+  ComboboxInputGroup,
+  ComboboxInput,
+  ComboboxTrigger,
+  ComboboxPopup,
+  ComboboxList,
+  ComboboxItem,
+  ComboboxEmpty,
+} from "@/components/ui/combobox";
 
 const FIELD_TYPE_LABELS: Record<FormFieldType, string> = {
   text: "Texto corto",
@@ -326,24 +329,27 @@ function AddFieldForm({
 
       <div className="flex flex-col gap-1">
         <Label>Tipo</Label>
-        <Select
+        <Combobox
+          items={Object.keys(FIELD_TYPE_LABELS)}
           value={fieldType}
-          onValueChange={(value) => setFieldType(value as FormFieldType)}
-          items={FIELD_TYPE_LABELS}
+          onValueChange={(value) => setFieldType((value ?? "text") as FormFieldType)}
+          itemToStringLabel={(v: string) => FIELD_TYPE_LABELS[v as FormFieldType] ?? v}
         >
-          <SelectTrigger className="w-40">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {(Object.entries(FIELD_TYPE_LABELS) as [FormFieldType, string][]).map(
-              ([value, typeLabel]) => (
-                <SelectItem key={value} value={value}>
-                  {typeLabel}
-                </SelectItem>
-              ),
-            )}
-          </SelectContent>
-        </Select>
+          <ComboboxInputGroup className="w-40">
+            <ComboboxInput />
+            <ComboboxTrigger />
+          </ComboboxInputGroup>
+          <ComboboxPopup>
+            <ComboboxEmpty>Sin resultados.</ComboboxEmpty>
+            <ComboboxList>
+              {(v: string) => (
+                <ComboboxItem key={v} value={v}>
+                  {FIELD_TYPE_LABELS[v as FormFieldType]}
+                </ComboboxItem>
+              )}
+            </ComboboxList>
+          </ComboboxPopup>
+        </Combobox>
       </div>
 
       <label className="flex items-center gap-2 pb-1.5 text-sm">

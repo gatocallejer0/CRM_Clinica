@@ -1,13 +1,15 @@
 import { requireRole } from "@/lib/auth/roles";
-import { ComingSoon } from "@/components/coming-soon";
+import { listAllServices, listProducts, listSales } from "@/app/actions/catalog";
+import { CatalogoView } from "@/components/catalogo/catalogo-view";
 
 export default async function CatalogoPage() {
   await requireRole(["Admin"]);
 
-  return (
-    <ComingSoon
-      title="Catálogo e inventario"
-      description="Próximamente: servicios y productos, con control de stock."
-    />
-  );
+  const [services, products, sales] = await Promise.all([
+    listAllServices(),
+    listProducts(),
+    listSales(),
+  ]);
+
+  return <CatalogoView services={services} products={products} sales={sales} />;
 }

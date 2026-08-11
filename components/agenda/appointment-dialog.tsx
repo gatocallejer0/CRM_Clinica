@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { TriangleAlertIcon } from "lucide-react";
 import {
   createAppointment,
@@ -28,12 +28,16 @@ import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Field, FieldRow, FormStagger } from "@/components/ui/field";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Combobox,
+  ComboboxInputGroup,
+  ComboboxInput,
+  ComboboxClear,
+  ComboboxTrigger,
+  ComboboxPopup,
+  ComboboxList,
+  ComboboxItem,
+  ComboboxEmpty,
+} from "@/components/ui/combobox";
 
 const DURATION_OPTIONS = [15, 20, 30, 45, 60, 90];
 const DURATION_LABELS: Record<string, string> = {
@@ -72,6 +76,9 @@ export function AppointmentDialog({
     undefined,
   );
 
+  const serviceNameById = useMemo(() => new Map(services.map((s) => [s.id, s.name])), [services]);
+  const doctorNameById = useMemo(() => new Map(doctors.map((d) => [d.id, d.full_name])), [doctors]);
+
   const [patientMode, setPatientMode] = useState<"existing" | "new">("existing");
   const [serviceId, setServiceId] = useState(appointment?.service_id ?? "");
   const [duration, setDuration] = useState(String(appointment?.duration_minutes ?? 30));
@@ -90,7 +97,7 @@ export function AppointmentDialog({
       onOpenChange(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state?.success]);
+  }, [state]);
 
   function handleConfirmOverlap() {
     if (forceInputRef.current) forceInputRef.current.value = "true";
@@ -186,89 +193,112 @@ export function AppointmentDialog({
 
             <FieldRow>
               <Field label="Servicio" htmlFor="serviceId" required>
-                <Select
+                <Combobox
+                  items={services.map((s) => s.id)}
+                  value={serviceId || null}
+                  onValueChange={(v) => handleServiceChange(v)}
+                  itemToStringLabel={(id: string) => serviceNameById.get(id) ?? ""}
                   name="serviceId"
                   required
-                  value={serviceId}
-                  onValueChange={handleServiceChange}
-                  items={Object.fromEntries(services.map((s) => [s.id, s.name]))}
                 >
-                  <SelectTrigger id="serviceId" className="w-full">
-                    <SelectValue placeholder="Selecciona un servicio" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {services.map((service) => (
-                      <SelectItem key={service.id} value={service.id}>
-                        {service.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <ComboboxInputGroup>
+                    <ComboboxInput id="serviceId" placeholder="Busca un servicio..." />
+                    <ComboboxClear />
+                    <ComboboxTrigger />
+                  </ComboboxInputGroup>
+                  <ComboboxPopup>
+                    <ComboboxEmpty>Sin servicios que coincidan.</ComboboxEmpty>
+                    <ComboboxList>
+                      {(id: string) => (
+                        <ComboboxItem key={id} value={id}>
+                          {serviceNameById.get(id)}
+                        </ComboboxItem>
+                      )}
+                    </ComboboxList>
+                  </ComboboxPopup>
+                </Combobox>
               </Field>
 
               <Field label="Duración" htmlFor="durationMinutes" required>
-                <Select
-                  name="durationMinutes"
-                  required
+                <Combobox
+                  items={DURATION_OPTIONS.map(String)}
                   value={duration}
                   onValueChange={(v) => {
                     setDuration(v ?? "30");
                     setDurationTouched(true);
                   }}
-                  items={DURATION_LABELS}
+                  itemToStringLabel={(v: string) => DURATION_LABELS[v] ?? v}
+                  name="durationMinutes"
+                  required
                 >
-                  <SelectTrigger id="durationMinutes" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {DURATION_OPTIONS.map((min) => (
-                      <SelectItem key={min} value={String(min)}>
-                        {DURATION_LABELS[String(min)]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <ComboboxInputGroup>
+                    <ComboboxInput id="durationMinutes" />
+                    <ComboboxTrigger />
+                  </ComboboxInputGroup>
+                  <ComboboxPopup>
+                    <ComboboxEmpty>Sin resultados.</ComboboxEmpty>
+                    <ComboboxList>
+                      {(v: string) => (
+                        <ComboboxItem key={v} value={v}>
+                          {DURATION_LABELS[v]}
+                        </ComboboxItem>
+                      )}
+                    </ComboboxList>
+                  </ComboboxPopup>
+                </Combobox>
               </Field>
             </FieldRow>
 
             <Field label="Doctora" htmlFor="doctorId" required>
-              <Select
+              <Combobox
+                items={doctors.map((d) => d.id)}
+                defaultValue={appointment?.doctor_id ?? null}
+                itemToStringLabel={(id: string) => doctorNameById.get(id) ?? ""}
                 name="doctorId"
                 required
-                defaultValue={appointment?.doctor_id ?? undefined}
-                items={Object.fromEntries(doctors.map((d) => [d.id, d.full_name]))}
               >
-                <SelectTrigger id="doctorId" className="w-full">
-                  <SelectValue placeholder="Selecciona una doctora" />
-                </SelectTrigger>
-                <SelectContent>
-                  {doctors.map((doctor) => (
-                    <SelectItem key={doctor.id} value={doctor.id}>
-                      {doctor.full_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <ComboboxInputGroup>
+                  <ComboboxInput id="doctorId" placeholder="Busca una doctora..." />
+                  <ComboboxClear />
+                  <ComboboxTrigger />
+                </ComboboxInputGroup>
+                <ComboboxPopup>
+                  <ComboboxEmpty>Sin resultados.</ComboboxEmpty>
+                  <ComboboxList>
+                    {(id: string) => (
+                      <ComboboxItem key={id} value={id}>
+                        {doctorNameById.get(id)}
+                      </ComboboxItem>
+                    )}
+                  </ComboboxList>
+                </ComboboxPopup>
+              </Combobox>
             </Field>
 
             <AppointmentDateTimeFields defaultDate={initialDate} defaultTime={initialTime} />
 
             <Field label="Estado" htmlFor="status">
-              <Select
-                name="status"
+              <Combobox
+                items={Object.keys(STATUS_LABELS)}
                 defaultValue={appointment?.status ?? "confirmada"}
-                items={STATUS_LABELS}
+                itemToStringLabel={(v: string) => STATUS_LABELS[v as keyof typeof STATUS_LABELS] ?? v}
+                name="status"
               >
-                <SelectTrigger id="status" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="confirmada">Confirmada</SelectItem>
-                  <SelectItem value="en_espera">En espera</SelectItem>
-                  <SelectItem value="atendida">Atendida</SelectItem>
-                  <SelectItem value="cancelada">Cancelada</SelectItem>
-                </SelectContent>
-              </Select>
+                <ComboboxInputGroup>
+                  <ComboboxInput id="status" />
+                  <ComboboxTrigger />
+                </ComboboxInputGroup>
+                <ComboboxPopup>
+                  <ComboboxEmpty>Sin resultados.</ComboboxEmpty>
+                  <ComboboxList>
+                    {(v: string) => (
+                      <ComboboxItem key={v} value={v}>
+                        {STATUS_LABELS[v as keyof typeof STATUS_LABELS]}
+                      </ComboboxItem>
+                    )}
+                  </ComboboxList>
+                </ComboboxPopup>
+              </Combobox>
             </Field>
 
             <Field label="Notas" htmlFor="notes" hint="Opcional">

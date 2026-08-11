@@ -4,6 +4,14 @@ import * as z from "zod";
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth/roles";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
+import { logAudit } from "@/lib/audit";
+
+type AdminClient = ReturnType<typeof createAdminClient>;
+
+async function getRoleName(admin: AdminClient, roleId: string): Promise<string> {
+  const { data } = await admin.from("roles").select("name").eq("id", roleId).single();
+  return data?.name ?? roleId;
+}
 
 export type Role = {
   id: string;
@@ -92,7 +100,7 @@ export async function createUser(
   _prevState: UserFormState,
   formData: FormData,
 ): Promise<UserFormState> {
-  await requireRole(["Admin"]);
+  const profile = await requireRole(["Admin"]);
 
   const validatedFields = CreateUserSchema.safeParse({
     fullName: formData.get("fullName"),
@@ -131,6 +139,15 @@ export async function createUser(
     await admin.auth.admin.deleteUser(created.user.id);
     return { error: profileError.message };
   }
+
+  const roleName = await getRoleName(admin, roleId);
+  await logAudit({
+    tableName: "profiles",
+    recordId: created.user.id,
+    action: "create",
+    summary: `Creó el usuario "${fullName}" (${email}) con rol ${roleName}.`,
+    performedBy: profile,
+  });
 
   revalidatePath("/admin/usuarios");
   return { success: true };
@@ -175,6 +192,15 @@ export async function updateUser(
 
   const admin = createAdminClient();
 
+  const { data: before } = await admin
+    .from("profiles")
+    .select("full_name, active, role:roles(name)")
+    .eq("id", id)
+    .single<{ full_name: string; active: boolean; role: { name: string } | { name: string }[] | null }>();
+  const { data: beforeAuth } = await admin.auth.admin.getUserById(id);
+  const beforeEmail = beforeAuth.user?.email ?? "";
+  const beforeRoleName = Array.isArray(before?.role) ? before.role[0]?.name : before?.role?.name;
+
   const { error: profileError } = await admin
     .from("profiles")
     .update({ full_name: fullName, role_id: roleId, active: active === "true" })
@@ -188,6 +214,30 @@ export async function updateUser(
 
   if (authError) {
     return { error: authError.message };
+  }
+
+  if (before) {
+    const afterRoleName = await getRoleName(admin, roleId);
+    const isActive = active === "true";
+    const changes: string[] = [];
+    if (before.full_name !== fullName) changes.push(`Nombre: "${before.full_name}" → "${fullName}"`);
+    if (beforeEmail && beforeEmail !== email) changes.push(`Correo: "${beforeEmail}" → "${email}"`);
+    if (beforeRoleName && beforeRoleName !== afterRoleName) {
+      changes.push(`Rol: "${beforeRoleName}" → "${afterRoleName}"`);
+    }
+    if (before.active !== isActive) {
+      changes.push(`Estado: "${before.active ? "Activo" : "Inactivo"}" → "${isActive ? "Activo" : "Inactivo"}"`);
+    }
+
+    if (changes.length > 0) {
+      await logAudit({
+        tableName: "profiles",
+        recordId: id,
+        action: "update",
+        summary: changes.join("; "),
+        performedBy: profile,
+      });
+    }
   }
 
   revalidatePath("/admin/usuarios");

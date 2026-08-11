@@ -17,12 +17,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Combobox,
+  ComboboxInputGroup,
+  ComboboxInput,
+  ComboboxTrigger,
+  ComboboxPopup,
+  ComboboxList,
+  ComboboxItem,
+  ComboboxEmpty,
+} from "@/components/ui/combobox";
+import { AuditLogDialog } from "@/components/shared/audit-log-dialog";
 import { UserDialog } from "./user-dialog";
 
 function getInitials(name: string): string {
@@ -66,6 +70,15 @@ export function UsersView({
       inactive: users.filter((u) => !u.active).length,
     }),
     [users],
+  );
+
+  const roleFilterOptions = useMemo(
+    () => ["all", ...roles.map((r) => r.id)],
+    [roles],
+  );
+  const roleFilterLabelById = useMemo(
+    () => new Map([["all", "Todos los roles"], ...roles.map((r): [string, string] => [r.id, r.name])]),
+    [roles],
   );
 
   const q = query.trim().toLowerCase();
@@ -128,23 +141,27 @@ export function UsersView({
         </div>
 
         <div className="flex flex-wrap items-center gap-3 border-t border-border px-5 py-3">
-          <Select
+          <Combobox
+            items={roleFilterOptions}
             value={roleFilter}
             onValueChange={(value) => setRoleFilter(value ?? "all")}
-            items={{ all: "Todos los roles", ...Object.fromEntries(roles.map((r) => [r.id, r.name])) }}
+            itemToStringLabel={(id: string) => roleFilterLabelById.get(id) ?? ""}
           >
-            <SelectTrigger className="w-44">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos los roles</SelectItem>
-              {roles.map((role) => (
-                <SelectItem key={role.id} value={role.id}>
-                  {role.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            <ComboboxInputGroup className="w-44">
+              <ComboboxInput />
+              <ComboboxTrigger />
+            </ComboboxInputGroup>
+            <ComboboxPopup>
+              <ComboboxEmpty>Sin resultados.</ComboboxEmpty>
+              <ComboboxList>
+                {(id: string) => (
+                  <ComboboxItem key={id} value={id}>
+                    {roleFilterLabelById.get(id)}
+                  </ComboboxItem>
+                )}
+              </ComboboxList>
+            </ComboboxPopup>
+          </Combobox>
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -198,14 +215,17 @@ export function UsersView({
                   </Badge>
                 </TableCell>
                 <TableCell className="pr-5 text-right">
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => openEditDialog(user)}
-                    title="Editar usuario"
-                  >
-                    <PencilIcon className="size-4" />
-                  </Button>
+                  <div className="flex items-center justify-end">
+                    <AuditLogDialog tableName="profiles" recordId={user.id} title={user.full_name} />
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => openEditDialog(user)}
+                      title="Editar usuario"
+                    >
+                      <PencilIcon className="size-4" />
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}

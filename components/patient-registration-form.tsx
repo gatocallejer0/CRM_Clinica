@@ -19,12 +19,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Field, FormStagger } from "@/components/ui/field";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Combobox,
+  ComboboxInputGroup,
+  ComboboxInput,
+  ComboboxClear,
+  ComboboxTrigger,
+  ComboboxPopup,
+  ComboboxList,
+  ComboboxItem,
+  ComboboxEmpty,
+} from "@/components/ui/combobox";
 
 function FieldInput({ field }: { field: FormField }) {
   switch (field.field_type) {
@@ -36,23 +40,28 @@ function FieldInput({ field }: { field: FormField }) {
       );
     case "date":
       return <Input id={field.key} name={field.key} type="date" required={field.required} />;
-    case "select":
+    case "select": {
+      const activeOptions = field.options.filter((option) => option.active);
       return (
-        <Select name={field.key} required={field.required}>
-          <SelectTrigger id={field.key} className="w-full">
-            <SelectValue placeholder="Selecciona una opción" />
-          </SelectTrigger>
-          <SelectContent>
-            {field.options
-              .filter((option) => option.active)
-              .map((option) => (
-                <SelectItem key={option.id} value={option.value}>
-                  {option.value}
-                </SelectItem>
-              ))}
-          </SelectContent>
-        </Select>
+        <Combobox items={activeOptions.map((o) => o.value)} name={field.key} required={field.required}>
+          <ComboboxInputGroup>
+            <ComboboxInput id={field.key} placeholder="Selecciona una opción" />
+            <ComboboxClear />
+            <ComboboxTrigger />
+          </ComboboxInputGroup>
+          <ComboboxPopup>
+            <ComboboxEmpty>Sin resultados.</ComboboxEmpty>
+            <ComboboxList>
+              {(value: string) => (
+                <ComboboxItem key={value} value={value}>
+                  {value}
+                </ComboboxItem>
+              )}
+            </ComboboxList>
+          </ComboboxPopup>
+        </Combobox>
       );
+    }
     default:
       return <Input id={field.key} name={field.key} type="text" required={field.required} />;
   }

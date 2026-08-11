@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useMemo } from "react";
 import {
   createUser,
   updateUser,
@@ -23,12 +23,16 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Field, FormStagger } from "@/components/ui/field";
 import { Switch } from "@/components/ui/switch";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Combobox,
+  ComboboxInputGroup,
+  ComboboxInput,
+  ComboboxClear,
+  ComboboxTrigger,
+  ComboboxPopup,
+  ComboboxList,
+  ComboboxItem,
+  ComboboxEmpty,
+} from "@/components/ui/combobox";
 
 export function UserDialog({
   open,
@@ -53,6 +57,7 @@ export function UserDialog({
     action,
     undefined,
   );
+  const roleNameById = useMemo(() => new Map(roles.map((role) => [role.id, role.name])), [roles]);
 
   useEffect(() => {
     if (state?.success) {
@@ -60,7 +65,7 @@ export function UserDialog({
       onOpenChange(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state?.success]);
+  }, [state]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -98,23 +103,29 @@ export function UserDialog({
             )}
 
             <Field label="Rol" htmlFor="roleId" required>
-              <Select
+              <Combobox
+                items={roles.map((role) => role.id)}
+                defaultValue={user?.role?.id ?? null}
+                itemToStringLabel={(id: string) => roleNameById.get(id) ?? ""}
                 name="roleId"
                 required
-                defaultValue={user?.role?.id}
-                items={Object.fromEntries(roles.map((role) => [role.id, role.name]))}
               >
-                <SelectTrigger id="roleId" className="w-full">
-                  <SelectValue placeholder="Selecciona un rol" />
-                </SelectTrigger>
-                <SelectContent>
-                  {roles.map((role) => (
-                    <SelectItem key={role.id} value={role.id}>
-                      {role.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <ComboboxInputGroup>
+                  <ComboboxInput id="roleId" placeholder="Busca un rol..." />
+                  <ComboboxClear />
+                  <ComboboxTrigger />
+                </ComboboxInputGroup>
+                <ComboboxPopup>
+                  <ComboboxEmpty>Sin resultados.</ComboboxEmpty>
+                  <ComboboxList>
+                    {(id: string) => (
+                      <ComboboxItem key={id} value={id}>
+                        {roleNameById.get(id)}
+                      </ComboboxItem>
+                    )}
+                  </ComboboxList>
+                </ComboboxPopup>
+              </Combobox>
             </Field>
 
             {isEdit && (
