@@ -46,27 +46,17 @@ export default async function DashboardPage() {
       <KpiGrid kpis={kpis} />
 
       {isAdmin && (
-        <div className="grid grid-cols-1 gap-4 min-[640px]:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 min-[640px]:grid-cols-2">
           <Card>
             <CardHeader>
-              <CardTitle>Usuarios</CardTitle>
-              <CardDescription>Crea y consulta el acceso del personal.</CardDescription>
+              <CardTitle>Admin Center</CardTitle>
+              <CardDescription>
+                Usuarios, formulario de pacientes, catálogo, cobros y reportes.
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <Link href="/admin/usuarios" className="text-sm font-semibold text-primary hover:underline">
-                Administrar usuarios →
-              </Link>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Formulario de pacientes</CardTitle>
-              <CardDescription>Agrega o inactiva preguntas y opciones.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Link href="/admin/formulario" className="text-sm font-semibold text-primary hover:underline">
-                Administrar formulario →
+              <Link href="/admin" className="text-sm font-semibold text-primary hover:underline">
+                Ir a Admin Center →
               </Link>
             </CardContent>
           </Card>
@@ -84,16 +74,6 @@ export default async function DashboardPage() {
           </Card>
         </div>
       )}
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Próximamente</CardTitle>
-          <CardDescription>
-            Agenda, expediente clínico, catálogo e inventario, cobros y pagos, y reportes se
-            irán habilitando en los próximos módulos del CRM.
-          </CardDescription>
-        </CardHeader>
-      </Card>
     </div>
   );
 }

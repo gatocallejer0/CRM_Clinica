@@ -92,7 +92,7 @@ export async function createService(
     performedBy: profile,
   });
 
-  revalidatePath("/catalogo");
+  revalidatePath("/admin/catalogo");
   revalidatePath("/agenda");
   return { success: true };
 }
@@ -141,7 +141,7 @@ export async function updateService(
     }
   }
 
-  revalidatePath("/catalogo");
+  revalidatePath("/admin/catalogo");
   revalidatePath("/agenda");
   return { success: true };
 }
@@ -237,7 +237,7 @@ export async function createProduct(
     performedBy: profile,
   });
 
-  revalidatePath("/catalogo");
+  revalidatePath("/admin/catalogo");
   return { success: true };
 }
 
@@ -287,7 +287,7 @@ export async function updateProduct(
     }
   }
 
-  revalidatePath("/catalogo");
+  revalidatePath("/admin/catalogo");
   return { success: true };
 }
 
@@ -407,6 +407,6 @@ export async function createSale(
     return { error: message };
   }
 
-  revalidatePath("/catalogo");
+  revalidatePath("/admin/catalogo");
   return { success: true };
 }
