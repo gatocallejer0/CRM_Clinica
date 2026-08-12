@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
@@ -7,6 +8,7 @@ export type Profile = {
   id: string;
   full_name: string;
   active: boolean;
+  temp_password_expires_at: string | null;
   role: {
     id: string;
     name: string;
@@ -17,8 +19,13 @@ export type Profile = {
  * Returns the signed-in user's profile (with role) or null if there is no
  * session. Use this in Server Components / Server Actions — never trust a
  * role coming from the client.
+ *
+ * Wrapped in React `cache()` so that calling this multiple times during the
+ * same request (e.g. once in a layout and again in the page it renders)
+ * only hits Supabase Auth + the `profiles` table once, instead of once per
+ * call. This is per-request only — it does not leak between users/requests.
  */
-export async function getCurrentProfile(): Promise<Profile | null> {
+export const getCurrentProfile = cache(async (): Promise<Profile | null> => {
   const supabase = await createClient();
   const {
     data: { user },
@@ -28,12 +35,12 @@ export async function getCurrentProfile(): Promise<Profile | null> {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, full_name, active, role:roles(id, name)")
+    .select("id, full_name, active, temp_password_expires_at, role:roles(id, name)")
     .eq("id", user.id)
     .single<Profile>();
 
   return profile ?? null;
-}
+});
 
 /**
  * Ensures the current user is signed in and has one of `allowedRoles`.

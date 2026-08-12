@@ -41,6 +41,7 @@ export function AgendaView({
   const [range, setRange] = useState<{ startISO: string; endISO: string } | null>(null);
   const [pending, startTransition] = useTransition();
   const calendarApi = useRef<CalendarApiHandle>(null);
+  const lastRangeKeyRef = useRef<string | null>(null);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogKey, setDialogKey] = useState(0);
@@ -59,6 +60,12 @@ export function AgendaView({
   function handleDatesSet(info: { title: string; startISO: string; endISO: string }) {
     setTitle(info.title);
     setRange({ startISO: info.startISO, endISO: info.endISO });
+
+    // FullCalendar fires `datesSet` twice for the same range on init (mount
+    // + view sync). Skip the redundant reload so we don't hit Supabase twice.
+    const key = `${info.startISO}|${info.endISO}`;
+    if (lastRangeKeyRef.current === key) return;
+    lastRangeKeyRef.current = key;
     reload(info.startISO, info.endISO);
   }
 

@@ -45,18 +45,21 @@ export async function listPatientsForExpediente(): Promise<PatientListItem[]> {
   await requireRole(CLINICAL_ROLES);
   const supabase = await createClient();
 
-  const { data: patients, error } = await supabase
-    .from("patient_summary")
-    .select("id, full_name, email")
-    .order("full_name", { nullsFirst: false });
+  const [
+    { data: patients, error },
+    { data: records, error: recordsError },
+  ] = await Promise.all([
+    supabase
+      .from("patient_summary")
+      .select("id, full_name, email")
+      .order("full_name", { nullsFirst: false }),
+    supabase
+      .from("clinical_records")
+      .select("patient_id, record_date")
+      .order("record_date", { ascending: false }),
+  ]);
 
   if (error) throw new Error(error.message);
-
-  const { data: records, error: recordsError } = await supabase
-    .from("clinical_records")
-    .select("patient_id, record_date")
-    .order("record_date", { ascending: false });
-
   if (recordsError) throw new Error(recordsError.message);
 
   const lastVisitByPatientId = new Map<string, string>();
@@ -82,24 +85,27 @@ export async function getPatientDetail(patientId: string): Promise<PatientDetail
   await requireRole(CLINICAL_ROLES);
   const supabase = await createClient();
 
-  const { data: patient, error } = await supabase
-    .from("patient_summary")
-    .select("id, full_name, email, phone, age, blood_type, allergies")
-    .eq("id", patientId)
-    .maybeSingle();
+  const [
+    { data: patient, error },
+    { data: records, error: recordsError },
+  ] = await Promise.all([
+    supabase
+      .from("patient_summary")
+      .select("id, full_name, email, phone, age, blood_type, allergies")
+      .eq("id", patientId)
+      .maybeSingle(),
+    supabase
+      .from("clinical_records")
+      .select(
+        "id, record_date, reason, diagnosis, evolution_notes, medical_orders, medication, medication_instructions, weight_kg, height_cm, last_menstrual_period, doctor:profiles!doctor_id(full_name)",
+      )
+      .eq("patient_id", patientId)
+      .order("record_date", { ascending: false })
+      .returns<ClinicalRecordRow[]>(),
+  ]);
 
   if (error) throw new Error(error.message);
   if (!patient) return null;
-
-  const { data: records, error: recordsError } = await supabase
-    .from("clinical_records")
-    .select(
-      "id, record_date, reason, diagnosis, evolution_notes, medical_orders, medication, medication_instructions, weight_kg, height_cm, last_menstrual_period, doctor:profiles!doctor_id(full_name)",
-    )
-    .eq("patient_id", patientId)
-    .order("record_date", { ascending: false })
-    .returns<ClinicalRecordRow[]>();
-
   if (recordsError) throw new Error(recordsError.message);
 
   return {
