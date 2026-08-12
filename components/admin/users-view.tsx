@@ -241,6 +241,7 @@ export function UsersView({
       </Card>
 
       <UserDialog
+        key={editing?.id ?? "create"}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         roles={roles}

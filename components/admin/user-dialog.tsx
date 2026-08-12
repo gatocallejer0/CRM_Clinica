@@ -4,10 +4,13 @@ import { useActionState, useEffect, useMemo } from "react";
 import {
   createUser,
   updateUser,
+  resetUserPassword,
   type UserFormState,
+  type ResetPasswordState,
   type UserRow,
   type Role,
 } from "@/app/actions/users";
+import { TempPasswordReveal } from "./temp-password-reveal";
 import {
   Dialog,
   DialogContent,
@@ -57,15 +60,46 @@ export function UserDialog({
     action,
     undefined,
   );
+  const [resetState, resetAction, resetPending] = useActionState<ResetPasswordState, FormData>(
+    resetUserPassword,
+    undefined,
+  );
   const roleNameById = useMemo(() => new Map(roles.map((role) => [role.id, role.name])), [roles]);
+
+  const justCreatedWithPassword = !isEdit && state?.success && state.generatedPassword;
 
   useEffect(() => {
     if (state?.success) {
       onSaved();
-      onOpenChange(false);
+      // El diálogo de creación se queda abierto para mostrar la contraseña
+      // temporal generada; el usuario lo cierra con "Listo".
+      if (isEdit) onOpenChange(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
+
+  if (justCreatedWithPassword) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Usuario creado</DialogTitle>
+            <DialogDescription>
+              Comparte esta contraseña temporal con el nuevo colaborador; solo se muestra una vez.
+            </DialogDescription>
+          </DialogHeader>
+
+          <TempPasswordReveal password={state.generatedPassword!} expiresAt={state.passwordExpiresAt} />
+
+          <DialogFooter>
+            <Button type="button" onClick={() => onOpenChange(false)}>
+              Listo
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -92,14 +126,9 @@ export function UserDialog({
             </Field>
 
             {!isEdit && (
-              <Field
-                label="Contraseña temporal"
-                htmlFor="password"
-                required
-                hint="Mínimo 8 caracteres"
-              >
-                <Input id="password" name="password" type="password" minLength={8} required />
-              </Field>
+              <p className="text-xs text-muted-foreground">
+                El sistema genera una contraseña temporal (válida por 2 horas) al crear el usuario.
+              </p>
             )}
 
             <Field label="Rol" htmlFor="roleId" required>
@@ -166,6 +195,32 @@ export function UserDialog({
             </Button>
           </DialogFooter>
         </form>
+
+        {isEdit && (
+          <div className="flex flex-col gap-2.5 border-t border-border pt-4">
+            {resetState?.password ? (
+              <TempPasswordReveal password={resetState.password} expiresAt={resetState.passwordExpiresAt} />
+            ) : (
+              <form action={resetAction} className="flex items-center justify-between gap-3">
+                <input type="hidden" name="id" value={user.id} />
+                <div>
+                  <p className="text-sm font-medium text-foreground">Restablecer contraseña</p>
+                  <p className="text-xs text-muted-foreground">
+                    Si olvidó su contraseña o la temporal expiró sin usarla, genera una nueva.
+                  </p>
+                </div>
+                <Button type="submit" variant="outline" size="sm" disabled={resetPending} loading={resetPending}>
+                  Generar nueva
+                </Button>
+              </form>
+            )}
+            {resetState?.error && (
+              <Alert variant="destructive">
+                <AlertDescription>{resetState.error}</AlertDescription>
+              </Alert>
+            )}
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

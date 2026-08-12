@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth/roles";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { logAudit } from "@/lib/audit";
+import { generateTempPassword, TEMP_PASSWORD_TTL_MS } from "@/lib/password";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
@@ -78,9 +79,6 @@ export async function listUsers(): Promise<UserRow[]> {
 const CreateUserSchema = z.object({
   fullName: z.string().min(2, { error: "El nombre es muy corto." }).trim(),
   email: z.email({ error: "Ingresa un correo válido." }),
-  password: z
-    .string()
-    .min(8, { error: "La contraseña debe tener al menos 8 caracteres." }),
   roleId: z.string().uuid({ error: "Selecciona un rol." }),
 });
 
@@ -88,6 +86,8 @@ export type UserFormState =
   | {
       error?: string;
       success?: boolean;
+      generatedPassword?: string;
+      passwordExpiresAt?: string;
     }
   | undefined;
 
@@ -105,7 +105,6 @@ export async function createUser(
   const validatedFields = CreateUserSchema.safeParse({
     fullName: formData.get("fullName"),
     email: formData.get("email"),
-    password: formData.get("password"),
     roleId: formData.get("roleId"),
   });
 
@@ -113,8 +112,11 @@ export async function createUser(
     return { error: "Revisa los datos del formulario." };
   }
 
-  const { fullName, email, password, roleId } = validatedFields.data;
+  const { fullName, email, roleId } = validatedFields.data;
   const admin = createAdminClient();
+
+  const password = generateTempPassword();
+  const passwordExpiresAt = new Date(Date.now() + TEMP_PASSWORD_TTL_MS).toISOString();
 
   const { data: created, error: createError } =
     await admin.auth.admin.createUser({
@@ -132,6 +134,7 @@ export async function createUser(
     full_name: fullName,
     role_id: roleId,
     active: true,
+    temp_password_expires_at: passwordExpiresAt,
   });
 
   if (profileError) {
@@ -150,7 +153,67 @@ export async function createUser(
   });
 
   revalidatePath("/admin/usuarios");
-  return { success: true };
+  return { success: true, generatedPassword: password, passwordExpiresAt };
+}
+
+const ResetPasswordSchema = z.object({
+  id: z.string().uuid({ error: "Usuario inválido." }),
+});
+
+export type ResetPasswordState =
+  | {
+      error?: string;
+      password?: string;
+      passwordExpiresAt?: string;
+    }
+  | undefined;
+
+/**
+ * Genera y asigna una nueva contraseña temporal (vence en 2 horas) a un
+ * usuario existente. Útil cuando la anterior expiró sin que el colaborador
+ * iniciara sesión. Admin-only.
+ */
+export async function resetUserPassword(
+  _prevState: ResetPasswordState,
+  formData: FormData,
+): Promise<ResetPasswordState> {
+  const profile = await requireRole(["Admin"]);
+
+  const validatedFields = ResetPasswordSchema.safeParse({ id: formData.get("id") });
+  if (!validatedFields.success) {
+    return { error: "Usuario inválido." };
+  }
+
+  const { id } = validatedFields.data;
+  const admin = createAdminClient();
+
+  const password = generateTempPassword();
+  const passwordExpiresAt = new Date(Date.now() + TEMP_PASSWORD_TTL_MS).toISOString();
+
+  const { error: authError } = await admin.auth.admin.updateUserById(id, { password });
+  if (authError) {
+    return { error: authError.message };
+  }
+
+  const { error: profileError } = await admin
+    .from("profiles")
+    .update({ temp_password_expires_at: passwordExpiresAt })
+    .eq("id", id);
+
+  if (profileError) {
+    return { error: profileError.message };
+  }
+
+  await logAudit({
+    tableName: "profiles",
+    recordId: id,
+    action: "update",
+    summary: "Generó una nueva contraseña temporal.",
+    performedBy: profile,
+  });
+
+  revalidatePath("/admin/usuarios");
+  return { password, passwordExpiresAt };
 }
 
 const UpdateUserSchema = z.object({

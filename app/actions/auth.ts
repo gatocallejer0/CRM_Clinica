@@ -2,8 +2,9 @@
 
 import { redirect } from "next/navigation";
 import * as z from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { rateLimit, getClientIp, RateLimitError } from "@/lib/rate-limit";
+import { newPasswordSchema } from "@/lib/password";
 
 const LoginSchema = z.object({
   email: z.email({ error: "Ingresa un correo válido." }),
@@ -41,7 +42,7 @@ export async function login(
   const { email, password, redirectTo } = validatedFields.data;
   const supabase = await createClient();
 
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data: signedIn, error } = await supabase.auth.signInWithPassword({
     email,
     password,
   });
@@ -51,6 +52,28 @@ export async function login(
     return { error: "Correo o contraseña incorrectos." };
   }
 
+  // Se usa el admin client porque `profiles` no tiene policy de UPDATE para
+  // `authenticated` (ver 0001_init.sql) — solo lectura del propio perfil.
+  const admin = createAdminClient();
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("temp_password_expires_at")
+    .eq("id", signedIn.user.id)
+    .single<{ temp_password_expires_at: string | null }>();
+
+  if (profile?.temp_password_expires_at) {
+    if (new Date(profile.temp_password_expires_at) < new Date()) {
+      await supabase.auth.signOut();
+      return { error: "Tu contraseña temporal expiró. Pide a un administrador que genere una nueva." };
+    }
+
+    // Contraseña temporal aún vigente: se le permite entrar, pero queda
+    // forzado a elegir una contraseña propia antes de usar el resto de la
+    // app (ver app/(app)/layout.tsx, que redirige mientras este campo siga
+    // sin ser null).
+    redirect("/cambiar-password");
+  }
+
   redirect(redirectTo && redirectTo.startsWith("/") ? redirectTo : "/");
 }
 
@@ -58,4 +81,60 @@ export async function logout() {
   const supabase = await createClient();
   await supabase.auth.signOut();
   redirect("/login");
+}
+
+const ChangePasswordSchema = z
+  .object({
+    password: newPasswordSchema,
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    error: "Las contraseñas no coinciden.",
+    path: ["confirmPassword"],
+  });
+
+export type ChangePasswordState =
+  | {
+      error?: string;
+    }
+  | undefined;
+
+/**
+ * Reemplaza la contraseña temporal por una elegida por el propio usuario.
+ * Requiere sesión activa (se llega aquí forzado desde el login o el layout
+ * de la app mientras `profiles.temp_password_expires_at` no sea null).
+ */
+export async function changePassword(
+  _prevState: ChangePasswordState,
+  formData: FormData,
+): Promise<ChangePasswordState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const validatedFields = ChangePasswordSchema.safeParse({
+    password: formData.get("password"),
+    confirmPassword: formData.get("confirmPassword"),
+  });
+
+  if (!validatedFields.success) {
+    return { error: validatedFields.error.issues[0]?.message ?? "Revisa la contraseña." };
+  }
+
+  const { error } = await supabase.auth.updateUser({ password: validatedFields.data.password });
+  if (error) {
+    return { error: error.message };
+  }
+
+  // Se usa el admin client porque `profiles` no tiene policy de UPDATE para
+  // `authenticated` (ver 0001_init.sql).
+  const admin = createAdminClient();
+  await admin.from("profiles").update({ temp_password_expires_at: null }).eq("id", user.id);
+
+  redirect("/");
 }
