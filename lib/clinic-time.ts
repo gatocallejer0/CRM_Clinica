@@ -134,3 +134,4 @@ export function startOfMonth(date: Date): Date {
 export function isSameClinicDay(a: Date, b: Date): boolean {
   return toClinicDateKey(a) === toClinicDateKey(b);
 }
+

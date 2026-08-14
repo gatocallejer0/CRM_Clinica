@@ -8,7 +8,7 @@ export function ComingSoon({
   description: string;
 }) {
   return (
-    <Card className="mx-auto max-w-lg">
+    <Card className="mx-auto w-full max-w-lg">
       <CardHeader>
         <CardTitle>{title}</CardTitle>
         <CardDescription>{description}</CardDescription>

@@ -1,13 +1,8 @@
 import { requireRole } from "@/lib/auth/roles";
-import { ComingSoon } from "@/components/coming-soon";
+import { ReportesView } from "@/components/reportes/reportes-view";
 
 export default async function ReportesPage() {
   await requireRole(["Admin"]);
 
-  return (
-    <ComingSoon
-      title="Reportes"
-      description="Próximamente: reportes financiero, operativo, de pacientes y auditoría."
-    />
-  );
+  return <ReportesView />;
 }
