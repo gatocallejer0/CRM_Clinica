@@ -66,5 +66,6 @@ const TITLES: Record<string, string> = Object.fromEntries([
 ]);
 
 export function getScreenTitle(pathname: string): string {
+  if (pathname.startsWith("/expediente/nuevo-registro")) return "Nuevo registro clínico";
   return TITLES[pathname] ?? "CRM Clínica";
 }

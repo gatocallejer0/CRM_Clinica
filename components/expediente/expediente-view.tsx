@@ -6,7 +6,6 @@ import {
   type PatientListItem,
   type PatientDetail,
 } from "@/app/actions/clinical-records";
-import type { DoctorOption } from "@/app/actions/appointments";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { PatientDetailPane } from "./patient-detail";
@@ -16,14 +15,10 @@ export function ExpedienteView({
   patients,
   initialSelectedId,
   initialDetail,
-  doctors,
-  isAdmin,
 }: {
   patients: PatientListItem[];
   initialSelectedId: string | null;
   initialDetail: PatientDetail | null;
-  doctors: DoctorOption[];
-  isAdmin: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId);
@@ -97,14 +92,7 @@ export function ExpedienteView({
       </Card>
 
       {detail ? (
-        <PatientDetailPane
-          key={detail.id}
-          patient={detail}
-          doctors={doctors}
-          isAdmin={isAdmin}
-          pending={pending}
-          onRecordCreated={() => loadPatient(detail.id)}
-        />
+        <PatientDetailPane key={detail.id} patient={detail} pending={pending} />
       ) : (
         <Card className="flex items-center justify-center px-5 py-16 text-sm text-muted-foreground">
           {patients.length === 0

@@ -134,7 +134,12 @@ export function Sidebar({
           </div>
         )}
         {generalItems.map((item) => (
-          <NavLink key={item.href} item={item} active={pathname === item.href} expanded={expanded} />
+          <NavLink
+            key={item.href}
+            item={item}
+            active={pathname === item.href || (item.href !== "/" && pathname.startsWith(`${item.href}/`))}
+            expanded={expanded}
+          />
         ))}
 
         {adminItems.length > 0 && (

@@ -2,13 +2,30 @@
 
 import { useState } from "react";
 import { motion } from "motion/react";
-import type { PatientDetail } from "@/app/actions/clinical-records";
-import type { DoctorOption } from "@/app/actions/appointments";
+import Link from "next/link";
+import { PillIcon, DownloadIcon } from "lucide-react";
+import type { PatientDetail, ClinicalRecord } from "@/app/actions/clinical-records";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { NewClinicalRecordDialog } from "./new-clinical-record-dialog";
-import { getInitials, computeBmi, computeGestationalWeeks, formatDateEs } from "./clinical-utils";
+import { buttonVariants } from "@/components/ui/button";
+import {
+  getInitials,
+  computeBmi,
+  computePregnancy,
+  formatGestationalAge,
+  pregnancySourceLabel,
+  formatDateEs,
+} from "./clinical-utils";
+
+function pregnancyFromRecord(r: Pick<ClinicalRecord, "last_menstrual_period" | "estimated_due_date" | "ultrasound_date" | "ultrasound_weeks" | "ultrasound_days">) {
+  return computePregnancy({
+    lastMenstrualPeriod: r.last_menstrual_period,
+    estimatedDueDate: r.estimated_due_date,
+    ultrasoundDate: r.ultrasound_date,
+    ultrasoundWeeks: r.ultrasound_weeks,
+    ultrasoundDays: r.ultrasound_days,
+  });
+}
 
 type Tab = "general" | "historial" | "ordenes" | "documentos";
 
@@ -21,23 +38,16 @@ const TABS: { value: Tab; label: string }[] = [
 
 export function PatientDetailPane({
   patient,
-  doctors,
-  isAdmin,
   pending,
-  onRecordCreated,
 }: {
   patient: PatientDetail;
-  doctors: DoctorOption[];
-  isAdmin: boolean;
   pending: boolean;
-  onRecordCreated: () => void;
 }) {
   const [tab, setTab] = useState<Tab>("general");
-  const [dialogOpen, setDialogOpen] = useState(false);
 
   const latestRecord = patient.records[0] ?? null;
   const bmi = computeBmi(latestRecord?.weight_kg ?? null, latestRecord?.height_cm ?? null);
-  const gestationalWeeks = computeGestationalWeeks(latestRecord?.last_menstrual_period ?? null);
+  const pregnancy = latestRecord ? pregnancyFromRecord(latestRecord) : null;
   const medicalOrders = patient.records.filter((r) => r.medical_orders);
 
   return (
@@ -79,7 +89,9 @@ export function PatientDetailPane({
             </button>
           ))}
         </div>
-        <Button onClick={() => setDialogOpen(true)}>+ Nuevo registro</Button>
+        <Link href={`/expediente/nuevo-registro/${patient.id}`} className={buttonVariants()}>
+          + Nuevo registro
+        </Link>
       </div>
 
       {tab === "general" && (
@@ -101,7 +113,7 @@ export function PatientDetailPane({
               ["Peso", latestRecord?.weight_kg ? `${latestRecord.weight_kg} kg` : "—"],
               ["Altura", latestRecord?.height_cm ? `${latestRecord.height_cm} cm` : "—"],
               ["IMC", bmi ?? "—"],
-              ["Semanas de embarazo", gestationalWeeks !== null ? String(gestationalWeeks) : "—"],
+              ["Edad gestacional", pregnancy ? formatGestationalAge(pregnancy.age) : "—"],
             ].map(([label, value]) => (
               <Card key={label} className="px-4 py-3.5">
                 <p className="text-xs font-medium text-muted-foreground">{label}</p>
@@ -109,6 +121,22 @@ export function PatientDetailPane({
               </Card>
             ))}
           </div>
+          {pregnancy && (
+            <Card className="px-5 py-4">
+              <p className="mb-2 font-heading text-sm font-semibold text-foreground">Embarazo</p>
+              <div className="flex flex-wrap gap-1.5">
+                <span className="rounded-full bg-secondary px-2.5 py-1 text-[11px] font-medium text-secondary-foreground">
+                  FPP: {formatDateEs(pregnancy.dueDate)}
+                </span>
+                <span className="rounded-full bg-secondary px-2.5 py-1 text-[11px] font-medium text-secondary-foreground">
+                  Edad gestacional: {formatGestationalAge(pregnancy.age)}
+                </span>
+              </div>
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                {pregnancySourceLabel(pregnancy.source)}.
+              </p>
+            </Card>
+          )}
         </div>
       )}
 
@@ -119,11 +147,17 @@ export function PatientDetailPane({
           )}
           {patient.records.map((r, i) => {
             const recordBmi = computeBmi(r.weight_kg, r.height_cm);
-            const recordWeeks = computeGestationalWeeks(r.last_menstrual_period);
+            const recordPregnancy = pregnancyFromRecord(r);
             const vitals = [
               r.weight_kg ? `Peso: ${r.weight_kg} kg` : null,
               recordBmi ? `IMC: ${recordBmi}` : null,
-              recordWeeks !== null ? `Semanas de embarazo: ${recordWeeks}` : null,
+              recordPregnancy ? `Edad gestacional: ${formatGestationalAge(recordPregnancy.age)}` : null,
+              recordPregnancy ? `FPP: ${formatDateEs(recordPregnancy.dueDate)}` : null,
+              r.ultrasound_date
+                ? `USG: ${formatDateEs(r.ultrasound_date)}${
+                    r.ultrasound_weeks !== null ? ` (${r.ultrasound_weeks}s ${r.ultrasound_days ?? 0}d)` : ""
+                  }`
+                : null,
             ].filter((v): v is string => v !== null);
 
             return (
@@ -158,6 +192,27 @@ export function PatientDetailPane({
                       ))}
                     </div>
                   )}
+
+                  {r.medication && (
+                    <div className="mt-3 rounded-xl border border-primary/15 bg-primary/5 p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
+                          <PillIcon className="size-3.5" />
+                          Receta
+                        </div>
+                        <a
+                          href={`/receta/${r.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
+                        >
+                          <DownloadIcon className="size-3.5" />
+                          Descargar
+                        </a>
+                      </div>
+                      <p className="mt-1.5 text-xs whitespace-pre-line text-foreground">{r.medication}</p>
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -186,15 +241,6 @@ export function PatientDetailPane({
           Próximamente: documentos adjuntos por paciente.
         </Card>
       )}
-
-      <NewClinicalRecordDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        patientId={patient.id}
-        doctors={doctors}
-        showDoctorSelect={isAdmin}
-        onCreated={onRecordCreated}
-      />
     </div>
   );
 }

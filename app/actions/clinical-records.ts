@@ -26,6 +26,10 @@ export type ClinicalRecord = {
   weight_kg: number | null;
   height_cm: number | null;
   last_menstrual_period: string | null;
+  estimated_due_date: string | null;
+  ultrasound_date: string | null;
+  ultrasound_weeks: number | null;
+  ultrasound_days: number | null;
   doctor_name: string | null;
 };
 
@@ -97,7 +101,7 @@ export async function getPatientDetail(patientId: string): Promise<PatientDetail
     supabase
       .from("clinical_records")
       .select(
-        "id, record_date, reason, diagnosis, evolution_notes, medical_orders, medication, medication_instructions, weight_kg, height_cm, last_menstrual_period, doctor:profiles!doctor_id(full_name)",
+        "id, record_date, reason, diagnosis, evolution_notes, medical_orders, medication, medication_instructions, weight_kg, height_cm, last_menstrual_period, estimated_due_date, ultrasound_date, ultrasound_weeks, ultrasound_days, doctor:profiles!doctor_id(full_name)",
       )
       .eq("patient_id", patientId)
       .order("record_date", { ascending: false })
@@ -128,13 +132,17 @@ export async function getPatientDetail(patientId: string): Promise<PatientDetail
       weight_kg: r.weight_kg,
       height_cm: r.height_cm,
       last_menstrual_period: r.last_menstrual_period,
+      estimated_due_date: r.estimated_due_date,
+      ultrasound_date: r.ultrasound_date,
+      ultrasound_weeks: r.ultrasound_weeks,
+      ultrasound_days: r.ultrasound_days,
       doctor_name: r.doctor?.full_name ?? null,
     })),
   };
 }
 
 const emptyToUndefined = (val: unknown) =>
-  typeof val === "string" && val.trim() === "" ? undefined : val;
+  val == null || (typeof val === "string" && val.trim() === "") ? undefined : val;
 
 const CreateClinicalRecordSchema = z.object({
   patientId: z.string().uuid({ error: "Paciente inválida." }),
@@ -143,9 +151,14 @@ const CreateClinicalRecordSchema = z.object({
   diagnosis: z.preprocess(emptyToUndefined, z.string().trim().optional()),
   evolutionNotes: z.preprocess(emptyToUndefined, z.string().trim().optional()),
   medicalOrders: z.preprocess(emptyToUndefined, z.string().trim().optional()),
+  prescription: z.preprocess(emptyToUndefined, z.string().trim().optional()),
   weightKg: z.preprocess(emptyToUndefined, z.coerce.number().positive().optional()),
   heightCm: z.preprocess(emptyToUndefined, z.coerce.number().positive().optional()),
   lastMenstrualPeriod: z.preprocess(emptyToUndefined, z.string().trim().optional()),
+  estimatedDueDate: z.preprocess(emptyToUndefined, z.string().trim().optional()),
+  ultrasoundDate: z.preprocess(emptyToUndefined, z.string().trim().optional()),
+  ultrasoundWeeks: z.preprocess(emptyToUndefined, z.coerce.number().int().min(0).max(42).optional()),
+  ultrasoundDays: z.preprocess(emptyToUndefined, z.coerce.number().int().min(0).max(6).optional()),
 });
 
 export type CreateClinicalRecordState =
@@ -168,9 +181,14 @@ export async function createClinicalRecord(
     diagnosis: formData.get("diagnosis"),
     evolutionNotes: formData.get("evolutionNotes"),
     medicalOrders: formData.get("medicalOrders"),
+    prescription: formData.get("prescription"),
     weightKg: formData.get("weightKg"),
     heightCm: formData.get("heightCm"),
     lastMenstrualPeriod: formData.get("lastMenstrualPeriod"),
+    estimatedDueDate: formData.get("estimatedDueDate"),
+    ultrasoundDate: formData.get("ultrasoundDate"),
+    ultrasoundWeeks: formData.get("ultrasoundWeeks"),
+    ultrasoundDays: formData.get("ultrasoundDays"),
   });
 
   if (!parsed.success) {
@@ -187,9 +205,14 @@ export async function createClinicalRecord(
     diagnosis: parsed.data.diagnosis ?? null,
     evolution_notes: parsed.data.evolutionNotes ?? null,
     medical_orders: parsed.data.medicalOrders ?? null,
+    medication: parsed.data.prescription ?? null,
     weight_kg: parsed.data.weightKg ?? null,
     height_cm: parsed.data.heightCm ?? null,
     last_menstrual_period: parsed.data.lastMenstrualPeriod ?? null,
+    estimated_due_date: parsed.data.estimatedDueDate ?? null,
+    ultrasound_date: parsed.data.ultrasoundDate ?? null,
+    ultrasound_weeks: parsed.data.ultrasoundWeeks ?? null,
+    ultrasound_days: parsed.data.ultrasoundDays ?? null,
     created_by: profile.id,
   });
 
@@ -200,4 +223,46 @@ export async function createClinicalRecord(
 
   revalidatePath("/expediente");
   return { success: true };
+}
+
+export type PrescriptionPrintData = {
+  patientName: string;
+  doctorName: string | null;
+  recordDate: string;
+  prescription: string;
+};
+
+/** Datos para la vista imprimible de una receta. Null si el registro no existe o no tiene receta. */
+export async function getClinicalRecordForPrint(recordId: string): Promise<PrescriptionPrintData | null> {
+  await requireRole(CLINICAL_ROLES);
+  const supabase = await createClient();
+
+  const { data: record, error } = await supabase
+    .from("clinical_records")
+    .select("record_date, medication, patient_id, doctor:profiles!doctor_id(full_name)")
+    .eq("id", recordId)
+    .maybeSingle<{
+      record_date: string;
+      medication: string | null;
+      patient_id: string;
+      doctor: { full_name: string } | null;
+    }>();
+
+  if (error) throw new Error(error.message);
+  if (!record || !record.medication) return null;
+
+  const { data: patient, error: patientError } = await supabase
+    .from("patient_summary")
+    .select("full_name")
+    .eq("id", record.patient_id)
+    .maybeSingle();
+
+  if (patientError) throw new Error(patientError.message);
+
+  return {
+    patientName: patient?.full_name ?? "Paciente sin nombre",
+    doctorName: record.doctor?.full_name ?? null,
+    recordDate: record.record_date,
+    prescription: record.medication,
+  };
 }

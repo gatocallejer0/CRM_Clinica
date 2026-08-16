@@ -281,6 +281,12 @@
   font-weight: 700;
 }
 
+@media print {
+  body {
+    background: white !important;
+  }
+}
+
 .clinic-calendar .fc-timegrid-col.fc-day-today,
 .clinic-calendar .fc-daygrid-day.fc-day-today {
   background-color: var(--fc-today-bg-color);

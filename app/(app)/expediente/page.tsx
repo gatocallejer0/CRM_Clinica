@@ -1,13 +1,18 @@
 import { requireRole } from "@/lib/auth/roles";
 import { listPatientsForExpediente, getPatientDetail } from "@/app/actions/clinical-records";
-import { listDoctors } from "@/app/actions/appointments";
 import { ExpedienteView } from "@/components/expediente/expediente-view";
 
-export default async function ExpedientePage() {
-  const profile = await requireRole(["Admin", "Doctor"]);
+export default async function ExpedientePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ patient?: string }>;
+}) {
+  await requireRole(["Admin", "Doctor"]);
+  const { patient: requestedId } = await searchParams;
 
-  const [patients, doctors] = await Promise.all([listPatientsForExpediente(), listDoctors()]);
-  const initialSelectedId = patients[0]?.id ?? null;
+  const patients = await listPatientsForExpediente();
+  const initialSelectedId =
+    (requestedId && patients.some((p) => p.id === requestedId) ? requestedId : patients[0]?.id) ?? null;
   const initialDetail = initialSelectedId ? await getPatientDetail(initialSelectedId) : null;
 
   return (
@@ -15,8 +20,6 @@ export default async function ExpedientePage() {
       patients={patients}
       initialSelectedId={initialSelectedId}
       initialDetail={initialDetail}
-      doctors={doctors}
-      isAdmin={profile.role.name === "Admin"}
     />
   );
 }
