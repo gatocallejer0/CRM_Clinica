@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { PlusIcon, Trash2Icon } from "lucide-react";
 import { createSale, type CatalogFormState, type ProductRow } from "@/app/actions/catalog";
 import { PatientSearchField } from "@/components/agenda/patient-search-field";
@@ -58,6 +59,7 @@ export function SaleDialog({
 
   useEffect(() => {
     if (state?.success) {
+      toast.success("Venta registrada");
       onSaved();
       onOpenChange(false);
     }

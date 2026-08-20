@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect } from "react";
+import { toast } from "sonner";
 import {
   createProduct,
   updateProduct,
@@ -44,6 +45,7 @@ export function ProductDialog({
 
   useEffect(() => {
     if (state?.success) {
+      toast.success(isEdit ? "Producto actualizado" : "Producto creado");
       onSaved();
       onOpenChange(false);
     }

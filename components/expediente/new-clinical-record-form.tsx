@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { toast } from "sonner";
 import { ArrowLeftIcon } from "lucide-react";
 import {
   createClinicalRecord,
@@ -53,6 +54,7 @@ export function NewClinicalRecordForm({
 
   useEffect(() => {
     if (state?.success) {
+      toast.success("Registro clínico guardado");
       router.push(backHref);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

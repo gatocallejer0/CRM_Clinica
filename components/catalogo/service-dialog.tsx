@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect } from "react";
+import { toast } from "sonner";
 import {
   createService,
   updateService,
@@ -54,6 +55,7 @@ export function ServiceDialog({
 
   useEffect(() => {
     if (state?.success) {
+      toast.success(isEdit ? "Servicio actualizado" : "Servicio creado");
       onSaved();
       onOpenChange(false);
     }

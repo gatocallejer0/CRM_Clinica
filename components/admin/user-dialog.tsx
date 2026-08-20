@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useMemo } from "react";
+import { toast } from "sonner";
 import {
   createUser,
   updateUser,
@@ -70,6 +71,7 @@ export function UserDialog({
 
   useEffect(() => {
     if (state?.success) {
+      toast.success(isEdit ? "Usuario actualizado" : "Usuario creado");
       onSaved();
       // El diálogo de creación se queda abierto para mostrar la contraseña
       // temporal generada; el usuario lo cierra con "Listo".

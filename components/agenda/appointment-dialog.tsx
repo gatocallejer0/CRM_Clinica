@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import { TriangleAlertIcon } from "lucide-react";
 import {
   createAppointment,
@@ -93,6 +94,7 @@ export function AppointmentDialog({
 
   useEffect(() => {
     if (state?.success) {
+      toast.success(isEdit ? "Cita actualizada" : "Cita agendada");
       onSaved();
       onOpenChange(false);
     }

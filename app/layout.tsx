@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Montserrat, Jost } from "next/font/google";
+import { Toaster } from "@/components/toaster";
 import "./globals.css";
 
 // Tipografía primaria de marca (guía MAR branding & design).
@@ -36,6 +37,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-[image:var(--gradient-bg)] bg-fixed">
         {children}
+        <Toaster />
       </body>
     </html>
   );
