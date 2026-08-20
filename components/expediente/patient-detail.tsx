@@ -148,13 +148,12 @@ export function PatientDetailPane({
           {patient.records.map((r, i) => {
             const recordBmi = computeBmi(r.weight_kg, r.height_cm);
             const recordPregnancy = pregnancyFromRecord(r);
-            const vitals = [
-              r.weight_kg ? `Peso: ${r.weight_kg} kg` : null,
-              recordBmi ? `IMC: ${recordBmi}` : null,
-              recordPregnancy ? `Edad gestacional: ${formatGestationalAge(recordPregnancy.age)}` : null,
-              recordPregnancy ? `FPP: ${formatDateEs(recordPregnancy.dueDate)}` : null,
+            const metaParts = [
+              r.weight_kg ? `Peso ${r.weight_kg} kg` : null,
+              recordBmi ? `IMC ${recordBmi}` : null,
+              recordPregnancy ? `FPP ${formatDateEs(recordPregnancy.dueDate)}` : null,
               r.ultrasound_date
-                ? `USG: ${formatDateEs(r.ultrasound_date)}${
+                ? `USG ${formatDateEs(r.ultrasound_date)}${
                     r.ultrasound_weeks !== null ? ` (${r.ultrasound_weeks}s ${r.ultrasound_days ?? 0}d)` : ""
                   }`
                 : null,
@@ -180,17 +179,14 @@ export function PatientDetailPane({
                     </p>
                   )}
 
-                  {vitals.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {vitals.map((v) => (
-                        <span
-                          key={v}
-                          className="rounded-full bg-secondary px-2.5 py-1 text-[11px] font-medium text-secondary-foreground"
-                        >
-                          {v}
-                        </span>
-                      ))}
-                    </div>
+                  {recordPregnancy && (
+                    <span className="mt-2 inline-block rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">
+                      Edad gestacional: {formatGestationalAge(recordPregnancy.age)}
+                    </span>
+                  )}
+
+                  {metaParts.length > 0 && (
+                    <p className="mt-1.5 text-xs text-muted-foreground">{metaParts.join(" · ")}</p>
                   )}
 
                   {r.medication && (

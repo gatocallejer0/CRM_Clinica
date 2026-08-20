@@ -113,55 +113,61 @@ export function OperationalReportView() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">Detalle de citas de la agenda.</p>
         <div className="flex flex-wrap items-center gap-2">
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar por paciente o correo..."
-            className="w-56"
-          />
-          <Combobox
-            items={serviceOptions}
-            value={serviceId}
-            onValueChange={(v) => setServiceId(v ?? "all")}
-            itemToStringLabel={(v: string) => serviceLabelById[v] ?? v}
-          >
-            <ComboboxInputGroup className="w-48">
-              <ComboboxInput />
-              <ComboboxTrigger />
-            </ComboboxInputGroup>
-            <ComboboxPopup>
-              <ComboboxEmpty>Sin resultados.</ComboboxEmpty>
-              <ComboboxList>
-                {(v: string) => (
-                  <ComboboxItem key={v} value={v}>
-                    {serviceLabelById[v]}
-                  </ComboboxItem>
-                )}
-              </ComboboxList>
-            </ComboboxPopup>
-          </Combobox>
-          <Combobox
-            items={STATUS_FILTER_OPTIONS}
-            value={status}
-            onValueChange={(v) => setStatus((v ?? "all") as StatusFilter)}
-            itemToStringLabel={(v: StatusFilter) => STATUS_FILTER_LABELS[v]}
-          >
-            <ComboboxInputGroup className="w-44">
-              <ComboboxInput />
-              <ComboboxTrigger />
-            </ComboboxInputGroup>
-            <ComboboxPopup>
-              <ComboboxEmpty>Sin resultados.</ComboboxEmpty>
-              <ComboboxList>
-                {(v: StatusFilter) => (
-                  <ComboboxItem key={v} value={v}>
-                    {STATUS_FILTER_LABELS[v]}
-                  </ComboboxItem>
-                )}
-              </ComboboxList>
-            </ComboboxPopup>
-          </Combobox>
-          <DateRangeFilter value={range} onValueChange={setRange} />
+          <div className="flex flex-wrap items-center gap-1.5 rounded-2xl border border-white/70 bg-white/50 p-1.5">
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Buscar por paciente o correo..."
+              className="w-56 border-transparent bg-transparent shadow-none hover:border-transparent"
+            />
+            <Combobox
+              items={serviceOptions}
+              value={serviceId}
+              onValueChange={(v) => setServiceId(v ?? "all")}
+              itemToStringLabel={(v: string) => serviceLabelById[v] ?? v}
+            >
+              <ComboboxInputGroup className="w-48 border-transparent bg-transparent shadow-none hover:border-transparent">
+                <ComboboxInput />
+                <ComboboxTrigger />
+              </ComboboxInputGroup>
+              <ComboboxPopup>
+                <ComboboxEmpty>Sin resultados.</ComboboxEmpty>
+                <ComboboxList>
+                  {(v: string) => (
+                    <ComboboxItem key={v} value={v}>
+                      {serviceLabelById[v]}
+                    </ComboboxItem>
+                  )}
+                </ComboboxList>
+              </ComboboxPopup>
+            </Combobox>
+            <Combobox
+              items={STATUS_FILTER_OPTIONS}
+              value={status}
+              onValueChange={(v) => setStatus((v ?? "all") as StatusFilter)}
+              itemToStringLabel={(v: StatusFilter) => STATUS_FILTER_LABELS[v]}
+            >
+              <ComboboxInputGroup className="w-44 border-transparent bg-transparent shadow-none hover:border-transparent">
+                <ComboboxInput />
+                <ComboboxTrigger />
+              </ComboboxInputGroup>
+              <ComboboxPopup>
+                <ComboboxEmpty>Sin resultados.</ComboboxEmpty>
+                <ComboboxList>
+                  {(v: StatusFilter) => (
+                    <ComboboxItem key={v} value={v}>
+                      {STATUS_FILTER_LABELS[v]}
+                    </ComboboxItem>
+                  )}
+                </ComboboxList>
+              </ComboboxPopup>
+            </Combobox>
+            <DateRangeFilter
+              value={range}
+              onValueChange={setRange}
+              className="border-transparent bg-transparent shadow-none hover:border-transparent"
+            />
+          </div>
           <Button variant="outline" onClick={handleExport} disabled={visibleRows.length === 0}>
             <DownloadIcon className="size-4" />
             Exportar

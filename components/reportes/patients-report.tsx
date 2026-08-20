@@ -118,13 +118,19 @@ function PatientsDetailTab() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">Todas las respuestas del formulario de registro.</p>
         <div className="flex flex-wrap items-center gap-2">
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar por nombre o correo..."
-            className="w-56"
-          />
-          <DateRangeFilter value={range} onValueChange={setRange} />
+          <div className="flex flex-wrap items-center gap-1.5 rounded-2xl border border-white/70 bg-white/50 p-1.5">
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Buscar por nombre o correo..."
+              className="w-56 border-transparent bg-transparent shadow-none hover:border-transparent"
+            />
+            <DateRangeFilter
+              value={range}
+              onValueChange={setRange}
+              className="border-transparent bg-transparent shadow-none hover:border-transparent"
+            />
+          </div>
           <Button variant="outline" onClick={handleExport} disabled={visibleRows.length === 0}>
             <DownloadIcon className="size-4" />
             Exportar

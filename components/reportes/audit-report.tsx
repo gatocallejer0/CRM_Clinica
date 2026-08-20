@@ -91,28 +91,34 @@ export function AuditReportView() {
           Últimas 200 acciones registradas (Usuarios, Servicios, Productos).
         </p>
         <div className="flex flex-wrap items-center gap-2">
-          <Combobox
-            items={TABLE_FILTER_OPTIONS}
-            value={tableFilter}
-            onValueChange={(v) => setTableFilter(v ?? "all")}
-            itemToStringLabel={(v: string) => TABLE_FILTER_LABELS[v] ?? v}
-          >
-            <ComboboxInputGroup className="w-44">
-              <ComboboxInput />
-              <ComboboxTrigger />
-            </ComboboxInputGroup>
-            <ComboboxPopup>
-              <ComboboxEmpty>Sin resultados.</ComboboxEmpty>
-              <ComboboxList>
-                {(v: string) => (
-                  <ComboboxItem key={v} value={v}>
-                    {TABLE_FILTER_LABELS[v] ?? v}
-                  </ComboboxItem>
-                )}
-              </ComboboxList>
-            </ComboboxPopup>
-          </Combobox>
-          <DateRangeFilter value={range} onValueChange={setRange} />
+          <div className="flex flex-wrap items-center gap-1.5 rounded-2xl border border-white/70 bg-white/50 p-1.5">
+            <Combobox
+              items={TABLE_FILTER_OPTIONS}
+              value={tableFilter}
+              onValueChange={(v) => setTableFilter(v ?? "all")}
+              itemToStringLabel={(v: string) => TABLE_FILTER_LABELS[v] ?? v}
+            >
+              <ComboboxInputGroup className="w-44 border-transparent bg-transparent shadow-none hover:border-transparent">
+                <ComboboxInput />
+                <ComboboxTrigger />
+              </ComboboxInputGroup>
+              <ComboboxPopup>
+                <ComboboxEmpty>Sin resultados.</ComboboxEmpty>
+                <ComboboxList>
+                  {(v: string) => (
+                    <ComboboxItem key={v} value={v}>
+                      {TABLE_FILTER_LABELS[v] ?? v}
+                    </ComboboxItem>
+                  )}
+                </ComboboxList>
+              </ComboboxPopup>
+            </Combobox>
+            <DateRangeFilter
+              value={range}
+              onValueChange={setRange}
+              className="border-transparent bg-transparent shadow-none hover:border-transparent"
+            />
+          </div>
           <Button variant="outline" onClick={handleExport} disabled={!entries || entries.length === 0}>
             <DownloadIcon className="size-4" />
             Exportar
