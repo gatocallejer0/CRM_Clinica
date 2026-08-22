@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useTransition, type FormEvent } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import { Trash2Icon } from "lucide-react";
 import {
   createFormField,
   updateFormField,
@@ -24,6 +26,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import {
   Combobox,
   ComboboxInputGroup,
@@ -41,6 +44,18 @@ const FIELD_TYPE_LABELS: Record<FormFieldType, string> = {
   number: "Número",
   date: "Fecha",
   select: "Selección (lista)",
+};
+
+// Entrada/salida de filas en listas que cambian ocasionalmente (agregar o
+// eliminar una pregunta/opción), no en cada render — evita que el elemento
+// aparezca o desaparezca de golpe. transform+opacity únicamente, curva y
+// duración de la skill "animate" (ease-out fuerte, 200ms).
+const ROW_MOTION = {
+  layout: true as const,
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -8 },
+  transition: { duration: 0.2, ease: [0.23, 1, 0.32, 1] as const },
 };
 
 function slugify(label: string): string {
@@ -96,25 +111,34 @@ function OptionRow({
 
   return (
     <div className="flex flex-col gap-1">
-      <div className="flex items-center gap-2 text-sm">
+      <div className="-mx-2 grid max-w-md grid-cols-[1fr_auto_auto] items-center gap-3 rounded-lg px-2 py-1 text-sm transition-colors hover:bg-muted">
         <span className={option.active ? "" : "text-muted-foreground line-through"}>
           {option.value}
         </span>
-        <Button type="button" variant="ghost" size="xs" disabled={pending} onClick={toggleActive}>
-          {option.active ? "Inactivar" : "Activar"}
-        </Button>
+        <Switch
+          checked={option.active}
+          onCheckedChange={toggleActive}
+          disabled={pending}
+          aria-label={option.active ? "Inactivar opción" : "Activar opción"}
+        />
         {confirming ? (
-          <>
+          <div className="flex gap-2">
             <Button type="button" variant="destructive" size="xs" disabled={pending} onClick={handleDelete}>
               Confirmar
             </Button>
             <Button type="button" variant="ghost" size="xs" onClick={() => setConfirming(false)}>
               Cancelar
             </Button>
-          </>
+          </div>
         ) : (
-          <Button type="button" variant="ghost" size="xs" onClick={() => setConfirming(true)}>
-            Eliminar
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            onClick={() => setConfirming(true)}
+            aria-label="Eliminar opción"
+          >
+            <Trash2Icon />
           </Button>
         )}
       </div>
@@ -160,21 +184,19 @@ function OptionsEditor({
   }
 
   return (
-    <div className="mt-1 flex flex-col gap-2 border-t pt-3">
-      <p className="text-xs font-medium text-muted-foreground">Opciones</p>
-      <div className="flex flex-col gap-1">
+    <div className="mt-1 flex flex-col gap-1 border-t border-border pt-3">
+      <p className="mb-1 text-xs font-medium text-muted-foreground">Opciones</p>
+      <AnimatePresence initial={false}>
         {field.options.map((option) => (
-          <OptionRow
-            key={option.id}
-            option={option}
-            onChange={(updated) => handleOptionChange(option.id, updated)}
-          />
+          <motion.div key={option.id} {...ROW_MOTION}>
+            <OptionRow option={option} onChange={(updated) => handleOptionChange(option.id, updated)} />
+          </motion.div>
         ))}
-        {field.options.length === 0 && (
-          <p className="text-xs text-muted-foreground">Sin opciones todavía.</p>
-        )}
-      </div>
-      <div className="flex gap-2">
+      </AnimatePresence>
+      {field.options.length === 0 && (
+        <p className="text-xs text-muted-foreground">Sin opciones todavía.</p>
+      )}
+      <div className="mt-1 flex gap-2">
         <Input
           value={newValue}
           onChange={(e) => setNewValue(e.target.value)}
@@ -225,8 +247,8 @@ function FieldRow({
   }
 
   return (
-    <div className="flex flex-col gap-2 rounded-lg border p-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+    <div className="flex flex-col gap-2 py-3">
+      <div className="-mx-2 grid max-w-xl grid-cols-[1fr_auto_auto] items-center gap-3 rounded-lg px-2 py-1 transition-colors hover:bg-muted">
         <div className="flex flex-wrap items-center gap-2">
           <span
             className={
@@ -237,34 +259,43 @@ function FieldRow({
           </span>
           <Badge variant="secondary">{FIELD_TYPE_LABELS[field.field_type]}</Badge>
           {field.required && <Badge variant="outline">Obligatoria</Badge>}
-          {!field.active && <Badge variant="outline">Inactiva</Badge>}
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button type="button" variant="outline" size="sm" disabled={pending} onClick={toggleActive}>
-            {field.active ? "Inactivar" : "Activar"}
-          </Button>
-          {confirming ? (
-            <>
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                disabled={pending}
-                onClick={handleDelete}
-              >
-                Confirmar eliminar
-              </Button>
-              <Button type="button" variant="ghost" size="sm" onClick={() => setConfirming(false)}>
-                Cancelar
-              </Button>
-            </>
-          ) : (
-            <Button type="button" variant="ghost" size="sm" onClick={() => setConfirming(true)}>
-              Eliminar
+        <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Switch
+            checked={field.active}
+            onCheckedChange={toggleActive}
+            disabled={pending}
+            aria-label={field.active ? "Inactivar pregunta" : "Activar pregunta"}
+          />
+          Activa
+        </label>
+        {confirming ? (
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              disabled={pending}
+              onClick={handleDelete}
+            >
+              Confirmar
             </Button>
-          )}
-        </div>
+            <Button type="button" variant="ghost" size="sm" onClick={() => setConfirming(false)}>
+              Cancelar
+            </Button>
+          </div>
+        ) : (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            onClick={() => setConfirming(true)}
+            aria-label="Eliminar pregunta"
+          >
+            <Trash2Icon />
+          </Button>
+        )}
       </div>
 
       {error && <p className="text-xs text-destructive">{error}</p>}
@@ -315,7 +346,7 @@ function AddFieldForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3 border-t pt-4">
+    <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3 pt-4">
       <div className="flex flex-col gap-1">
         <Label htmlFor={`new-label-${section}`}>Nueva pregunta</Label>
         <Input
@@ -353,11 +384,7 @@ function AddFieldForm({
       </div>
 
       <label className="flex items-center gap-2 pb-1.5 text-sm">
-        <input
-          type="checkbox"
-          checked={required}
-          onChange={(e) => setRequired(e.target.checked)}
-        />
+        <Switch checked={required} onCheckedChange={setRequired} />
         Obligatoria
       </label>
 
@@ -393,20 +420,23 @@ function SectionCard({
         <CardTitle>{title}</CardTitle>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col gap-3">
-        {items.map((field) => (
-          <FieldRow
-            key={field.id}
-            field={field}
-            onChange={(updated) => {
-              setItems((prev) =>
-                updated
-                  ? prev.map((f) => (f.id === field.id ? updated : f))
-                  : prev.filter((f) => f.id !== field.id),
-              );
-            }}
-          />
-        ))}
+      <CardContent className="flex flex-col divide-y divide-border">
+        <AnimatePresence initial={false}>
+          {items.map((field) => (
+            <motion.div key={field.id} {...ROW_MOTION}>
+              <FieldRow
+                field={field}
+                onChange={(updated) => {
+                  setItems((prev) =>
+                    updated
+                      ? prev.map((f) => (f.id === field.id ? updated : f))
+                      : prev.filter((f) => f.id !== field.id),
+                  );
+                }}
+              />
+            </motion.div>
+          ))}
+        </AnimatePresence>
         <AddFieldForm section={section} onCreated={handleCreated} />
       </CardContent>
     </Card>
