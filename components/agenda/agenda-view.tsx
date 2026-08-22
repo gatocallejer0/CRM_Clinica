@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition, useRef } from "react";
+import { useEffect, useState, useTransition, useRef } from "react";
+import dynamic from "next/dynamic";
 import { motion } from "motion/react";
 import { PlusIcon } from "lucide-react";
 import {
@@ -16,7 +17,15 @@ import {
   type CalendarViewName,
   type CalendarApiHandle,
 } from "./full-calendar-view";
-import { AppointmentDialog } from "./appointment-dialog";
+
+// AppointmentDialog arrastra react-day-picker/react-aria/date-fns (el
+// selector de fecha/hora) — cargarlo estático sumaba ~750KB a cada visita de
+// Agenda aunque nunca se abriera el diálogo. Se separa en su propio chunk y
+// solo se monta la primera vez que el usuario abre "Nueva cita" o edita una
+// cita (ver hasOpenedDialog abajo); loadAppointmentDialog además se
+// pre-calienta en tiempo ocioso para que, cuando eso pase, ya esté en caché.
+const loadAppointmentDialog = () => import("./appointment-dialog").then((m) => m.AppointmentDialog);
+const AppointmentDialog = dynamic(loadAppointmentDialog, { ssr: false });
 
 type ViewMode = "day" | "week" | "month" | "list";
 
@@ -50,6 +59,16 @@ export function AgendaView({
   const [createInput, setCreateInput] = useState<{ date: string; time: string } | undefined>(
     undefined,
   );
+  const [hasOpenedDialog, setHasOpenedDialog] = useState(false);
+
+  useEffect(() => {
+    const idle = window.requestIdleCallback ?? ((cb: () => void) => setTimeout(cb, 1));
+    const cancelIdle = window.cancelIdleCallback ?? clearTimeout;
+    const id = idle(() => {
+      loadAppointmentDialog();
+    });
+    return () => cancelIdle(id);
+  }, []);
 
   function reload(startISO: string, endISO: string) {
     startTransition(async () => {
@@ -78,12 +97,14 @@ export function AgendaView({
     setEditing(undefined);
     setCreateInput(input ?? { date: toClinicDateKey(clinicToday()), time: "" });
     setDialogKey((k) => k + 1);
+    setHasOpenedDialog(true);
     setDialogOpen(true);
   }
 
   function openEditDialog(appointment: Appointment) {
     setEditing(appointment);
     setDialogKey((k) => k + 1);
+    setHasOpenedDialog(true);
     setDialogOpen(true);
   }
 
@@ -162,17 +183,19 @@ export function AgendaView({
         onChanged={handleChanged}
       />
 
-      <AppointmentDialog
-        key={dialogKey}
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        appointment={editing}
-        services={services}
-        doctors={doctors}
-        defaultDate={createInput?.date}
-        defaultTime={createInput?.time}
-        onSaved={handleChanged}
-      />
+      {hasOpenedDialog && (
+        <AppointmentDialog
+          key={dialogKey}
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          appointment={editing}
+          services={services}
+          doctors={doctors}
+          defaultDate={createInput?.date}
+          defaultTime={createInput?.time}
+          onSaved={handleChanged}
+        />
+      )}
     </div>
   );
 }
