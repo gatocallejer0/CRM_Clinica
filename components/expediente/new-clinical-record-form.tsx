@@ -17,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Field, FieldRow, FormStagger } from "@/components/ui/field";
 import { Switch } from "@/components/ui/switch";
+import { DatePickerField } from "@/components/ui/date-picker-field";
 import {
   Combobox,
   ComboboxInputGroup,
@@ -138,12 +139,7 @@ export function NewClinicalRecordForm({
                 <Input id="heightCm" name="heightCm" type="number" step="0.1" min="0" />
               </Field>
               <Field label="FUM" htmlFor="lastMenstrualPeriod">
-                <Input
-                  id="lastMenstrualPeriod"
-                  name="lastMenstrualPeriod"
-                  type="date"
-                  disabled={unknownFum}
-                />
+                <DatePickerField id="lastMenstrualPeriod" name="lastMenstrualPeriod" disabled={unknownFum} />
               </Field>
             </FieldRow>
 
@@ -161,13 +157,13 @@ export function NewClinicalRecordForm({
                 hint="Indicada directamente, ya que no se conoce la FUM."
                 className="max-w-sm"
               >
-                <Input id="estimatedDueDate" name="estimatedDueDate" type="date" />
+                <DatePickerField id="estimatedDueDate" name="estimatedDueDate" />
               </Field>
             )}
 
             <FieldRow className="grid-cols-1 min-[560px]:grid-cols-3">
               <Field label="Fecha de ultrasonido" htmlFor="ultrasoundDate">
-                <Input id="ultrasoundDate" name="ultrasoundDate" type="date" />
+                <DatePickerField id="ultrasoundDate" name="ultrasoundDate" />
               </Field>
               <Field label="Semanas (al ultrasonido)" htmlFor="ultrasoundWeeks">
                 <Combobox items={WEEK_OPTIONS} name="ultrasoundWeeks">

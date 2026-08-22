@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Field, FormStagger } from "@/components/ui/field";
+import { DatePickerField } from "@/components/ui/date-picker-field";
 import {
   Combobox,
   ComboboxInputGroup,
@@ -39,7 +40,7 @@ function FieldInput({ field }: { field: FormField }) {
         <Input id={field.key} name={field.key} type="number" required={field.required} />
       );
     case "date":
-      return <Input id={field.key} name={field.key} type="date" required={field.required} />;
+      return <DatePickerField id={field.key} name={field.key} required={field.required} />;
     case "select": {
       const activeOptions = field.options.filter((option) => option.active);
       return (
