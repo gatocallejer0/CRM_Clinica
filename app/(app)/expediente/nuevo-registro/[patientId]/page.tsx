@@ -9,10 +9,16 @@ export default async function NuevoRegistroClinicoPage({
 }: {
   params: Promise<{ patientId: string }>;
 }) {
-  const profile = await requireRole(["Admin", "Doctor"]);
+  // params se resuelve casi al instante (no es una consulta de red), así que
+  // se espera antes para tener patientId; requireRole corre junto a las
+  // consultas — getPatientDetail ya hace su propio requireRole internamente
+  // y React cache() comparte esa llamada.
   const { patientId } = await params;
-
-  const [patient, doctors] = await Promise.all([getPatientDetail(patientId), listDoctors()]);
+  const [profile, patient, doctors] = await Promise.all([
+    requireRole(["Admin", "Doctor"]),
+    getPatientDetail(patientId),
+    listDoctors(),
+  ]);
 
   if (!patient) notFound();
 

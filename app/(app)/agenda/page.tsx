@@ -4,10 +4,14 @@ import { clinicToday, addDays } from "@/lib/clinic-time";
 import { AgendaView } from "@/components/agenda/agenda-view";
 
 export default async function AgendaPage() {
-  await requireRole(["Admin", "Doctor", "Recepción"]);
-
   const today = clinicToday();
-  const [appointments, services, doctors] = await Promise.all([
+
+  // El chequeo de rol corre en paralelo con las consultas: estas ya dependen
+  // únicamente de RLS (no de requireRole) para su seguridad — ver
+  // listAppointments/listServices/listDoctors — así que no hay que esperar
+  // el rol antes de pedirlas. Ahorra un viaje redondo completo a Supabase.
+  const [, appointments, services, doctors] = await Promise.all([
+    requireRole(["Admin", "Doctor", "Recepción"]),
     listAppointments(today.toISOString(), addDays(today, 1).toISOString()),
     listServices(),
     listDoctors(),

@@ -3,8 +3,9 @@ import { getFormFieldsWithOptions } from "@/app/actions/form-fields";
 import { FormFieldsManager } from "@/components/form-fields-manager";
 
 export default async function AdminFormularioPage() {
-  await requireRole(["Admin"]);
-  const fields = await getFormFieldsWithOptions();
+  // getFormFieldsWithOptions no depende de requireRole (RLS ya distingue
+  // anon/personal), así que puede correr en paralelo sin riesgo.
+  const [, fields] = await Promise.all([requireRole(["Admin"]), getFormFieldsWithOptions()]);
 
   return (
     <div className="flex flex-col gap-6">

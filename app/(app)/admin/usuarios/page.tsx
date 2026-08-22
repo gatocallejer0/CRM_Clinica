@@ -3,9 +3,13 @@ import { listRoles, listUsers } from "@/app/actions/users";
 import { UsersView } from "@/components/admin/users-view";
 
 export default async function UsuariosPage() {
-  const profile = await requireRole(["Admin"]);
-
-  const [roles, users] = await Promise.all([listRoles(), listUsers()]);
+  // requireRole corre junto a las consultas: ambas ya hacen su propio
+  // requireRole internamente y React cache() comparte esa llamada.
+  const [profile, roles, users] = await Promise.all([
+    requireRole(["Admin"]),
+    listRoles(),
+    listUsers(),
+  ]);
 
   return <UsersView users={users} roles={roles} currentUserId={profile.id} />;
 }
