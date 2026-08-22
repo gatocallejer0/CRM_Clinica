@@ -2,6 +2,14 @@
 
 import { useState } from "react";
 import { ComingSoon } from "@/components/coming-soon";
+import type { ServiceRow } from "@/app/actions/catalog";
+import type {
+  OperationalReport,
+  PatientsSummaryReport,
+  AtRiskPatientRow,
+  PatientsDataReport,
+  AuditReportEntry,
+} from "@/app/actions/reports";
 import { OperationalReportView } from "./operational-report";
 import { PatientsReportView } from "./patients-report";
 import { AuditReportView } from "./audit-report";
@@ -15,7 +23,21 @@ const TABS: { value: Tab; label: string }[] = [
   { value: "auditoria", label: "Auditoría" },
 ];
 
-export function ReportesView() {
+export function ReportesView({
+  services,
+  initialOperational,
+  initialPatientsSummary,
+  initialAtRiskPatients,
+  initialPatientsData,
+  initialAuditEntries,
+}: {
+  services: ServiceRow[];
+  initialOperational: OperationalReport;
+  initialPatientsSummary: PatientsSummaryReport;
+  initialAtRiskPatients: AtRiskPatientRow[];
+  initialPatientsData: PatientsDataReport;
+  initialAuditEntries: AuditReportEntry[];
+}) {
   const [tab, setTab] = useState<Tab>("financiero");
 
   return (
@@ -43,9 +65,15 @@ export function ReportesView() {
           description="Próximamente: tabla mensual (Citas, Ingresos, Gastos, Utilidad neta) y detalle de gastos — depende del módulo Cobros y pagos, que todavía no existe."
         />
       )}
-      {tab === "operativo" && <OperationalReportView />}
-      {tab === "pacientes" && <PatientsReportView />}
-      {tab === "auditoria" && <AuditReportView />}
+      {tab === "operativo" && <OperationalReportView services={services} initialReport={initialOperational} />}
+      {tab === "pacientes" && (
+        <PatientsReportView
+          initialData={initialPatientsData}
+          initialSummary={initialPatientsSummary}
+          initialAtRisk={initialAtRiskPatients}
+        />
+      )}
+      {tab === "auditoria" && <AuditReportView initialEntries={initialAuditEntries} />}
     </div>
   );
 }

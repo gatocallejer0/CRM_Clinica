@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { DateRange } from "react-day-picker";
 import { CalendarIcon, CircleCheckIcon, DownloadIcon, UsersIcon } from "lucide-react";
 import {
   getPatientsSummaryReport,
   getPatientsDataReport,
-  getAtRiskPatients,
   type PatientsSummaryReport,
   type PatientsDataReport,
   type AtRiskPatientRow,
@@ -40,7 +39,15 @@ const TABS: { value: Tab; label: string }[] = [
   { value: "recurrencia", label: "Recurrencia" },
 ];
 
-export function PatientsReportView() {
+export function PatientsReportView({
+  initialData,
+  initialSummary,
+  initialAtRisk,
+}: {
+  initialData: PatientsDataReport;
+  initialSummary: PatientsSummaryReport;
+  initialAtRisk: AtRiskPatientRow[];
+}) {
   const [tab, setTab] = useState<Tab>("detalle");
 
   return (
@@ -60,17 +67,22 @@ export function PatientsReportView() {
         ))}
       </div>
 
-      {tab === "detalle" && <PatientsDetailTab />}
-      {tab === "recurrencia" && <PatientsRecurrenceTab />}
+      {tab === "detalle" && <PatientsDetailTab initialData={initialData} />}
+      {tab === "recurrencia" && (
+        <PatientsRecurrenceTab initialSummary={initialSummary} initialAtRisk={initialAtRisk} />
+      )}
     </div>
   );
 }
 
-function PatientsDetailTab() {
+function PatientsDetailTab({ initialData }: { initialData: PatientsDataReport }) {
   const [range, setRange] = useState<DateRange | undefined>(undefined);
   const [query, setQuery] = useState("");
-  const [data, setData] = useState<PatientsDataReport | null>(null);
-  const [loadedKey, setLoadedKey] = useState<string | null>(null);
+  const [data, setData] = useState<PatientsDataReport>(initialData);
+  // Coincide con currentKey para los filtros por defecto de arriba — el
+  // servidor ya trajo esos datos, así que no hace falta re-pedirlos al montar.
+  const [loadedKey, setLoadedKey] = useState<string | null>(":");
+  const isFirstRun = useRef(true);
 
   const fromKey = range?.from ? toClinicDateKey(range.from) : null;
   const toKey = range?.to ? toClinicDateKey(range.to) : fromKey;
@@ -78,6 +90,10 @@ function PatientsDetailTab() {
   const loading = loadedKey !== currentKey;
 
   useEffect(() => {
+    if (isFirstRun.current) {
+      isFirstRun.current = false;
+      return;
+    }
     let cancelled = false;
     getPatientsDataReport({ fromKey, toKey }).then((result) => {
       if (cancelled) return;
@@ -91,7 +107,6 @@ function PatientsDetailTab() {
   }, [fromKey, toKey]);
 
   const visibleRows = useMemo(() => {
-    if (!data) return [];
     const q = query.trim().toLowerCase();
     if (!q) return data.rows;
     return data.rows.filter((row) => {
@@ -100,10 +115,9 @@ function PatientsDetailTab() {
     });
   }, [data, query]);
 
-  const columnCount = 2 + (data?.fields.length ?? 0);
+  const columnCount = 2 + data.fields.length;
 
   function handleExport() {
-    if (!data) return;
     exportRowsToCsv(
       "pacientes-detalle",
       visibleRows.map((row) => ({
@@ -113,6 +127,7 @@ function PatientsDetailTab() {
       })),
     );
   }
+
 
   return (
     <div className="flex flex-col gap-4">
@@ -145,7 +160,7 @@ function PatientsDetailTab() {
             <TableRow className="hover:bg-transparent">
               <TableHead className="pl-5">Correo</TableHead>
               <TableHead>Fecha de registro</TableHead>
-              {data?.fields.map((f) => <TableHead key={f.key}>{f.label}</TableHead>)}
+              {data.fields.map((f) => <TableHead key={f.key}>{f.label}</TableHead>)}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -156,7 +171,7 @@ function PatientsDetailTab() {
                   <TableCell className="whitespace-nowrap">
                     {capitalize(DATE_FORMAT.format(new Date(row.createdAt)))}
                   </TableCell>
-                  {data?.fields.map((f) => (
+                  {data.fields.map((f) => (
                     <TableCell key={f.key} className="max-w-56 truncate">
                       {row.answers[f.key] ?? "—"}
                     </TableCell>
@@ -184,13 +199,24 @@ function PatientsDetailTab() {
   );
 }
 
-function PatientsRecurrenceTab() {
+function PatientsRecurrenceTab({
+  initialSummary,
+  initialAtRisk,
+}: {
+  initialSummary: PatientsSummaryReport;
+  initialAtRisk: AtRiskPatientRow[];
+}) {
   const [range, setRange] = useState<DateRange | undefined>(undefined);
-  const [summary, setSummary] = useState<PatientsSummaryReport | null>(null);
-  const [summaryLoadedKey, setSummaryLoadedKey] = useState<string | null>(null);
+  const [summary, setSummary] = useState<PatientsSummaryReport>(initialSummary);
+  // Coincide con currentKey para los filtros por defecto de arriba — el
+  // servidor ya trajo esos datos, así que no hace falta re-pedirlos al montar.
+  const [summaryLoadedKey, setSummaryLoadedKey] = useState<string | null>(":");
+  const isFirstRun = useRef(true);
 
-  const [atRisk, setAtRisk] = useState<AtRiskPatientRow[] | null>(null);
-  const [atRiskLoaded, setAtRiskLoaded] = useState(false);
+  // "En riesgo de abandono" no tiene filtros propios — el dato del servidor
+  // nunca queda obsoleto dentro de la sesión, así que no hace falta volver a
+  // pedirlo del lado del cliente.
+  const atRisk = initialAtRisk;
 
   const fromKey = range?.from ? toClinicDateKey(range.from) : null;
   const toKey = range?.to ? toClinicDateKey(range.to) : fromKey;
@@ -198,6 +224,10 @@ function PatientsRecurrenceTab() {
   const summaryLoading = summaryLoadedKey !== currentKey;
 
   useEffect(() => {
+    if (isFirstRun.current) {
+      isFirstRun.current = false;
+      return;
+    }
     let cancelled = false;
     getPatientsSummaryReport({ fromKey, toKey }).then((result) => {
       if (cancelled) return;
@@ -210,20 +240,7 @@ function PatientsRecurrenceTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fromKey, toKey]);
 
-  useEffect(() => {
-    let cancelled = false;
-    getAtRiskPatients().then((result) => {
-      if (cancelled) return;
-      setAtRisk(result);
-      setAtRiskLoaded(true);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   function handleExportMonths() {
-    if (!summary) return;
     exportRowsToCsv(
       "pacientes-recurrencia",
       summary.months.map((m) => ({
@@ -237,7 +254,6 @@ function PatientsRecurrenceTab() {
   }
 
   function handleExportAtRisk() {
-    if (!atRisk) return;
     exportRowsToCsv(
       "pacientes-riesgo-abandono",
       atRisk.map((p) => ({
@@ -259,7 +275,7 @@ function PatientsRecurrenceTab() {
             <Button
               variant="outline"
               onClick={handleExportMonths}
-              disabled={!summary || summary.months.length === 0}
+              disabled={summary.months.length === 0}
             >
               <DownloadIcon className="size-4" />
               Exportar
@@ -280,7 +296,7 @@ function PatientsRecurrenceTab() {
             </TableHeader>
             <TableBody>
               {!summaryLoading &&
-                summary?.months.map((m) => (
+                summary.months.map((m) => (
                   <TableRow key={m.monthKey}>
                     <TableCell className="pl-5 capitalize">{m.monthLabel}</TableCell>
                     <TableCell>{m.nuevas}</TableCell>
@@ -296,7 +312,7 @@ function PatientsRecurrenceTab() {
                   </TableCell>
                 </TableRow>
               )}
-              {!summaryLoading && summary?.months.length === 0 && (
+              {!summaryLoading && summary.months.length === 0 && (
                 <TableRow className="hover:bg-transparent">
                   <TableCell colSpan={5} className="p-0">
                     <EmptyState icon={CalendarIcon} message="Sin citas en este rango." />
@@ -316,7 +332,7 @@ function PatientsRecurrenceTab() {
               Sin cita en los últimos 90 días, con al menos una visita previa.
             </p>
           </div>
-          <Button variant="outline" onClick={handleExportAtRisk} disabled={!atRisk || atRisk.length === 0}>
+          <Button variant="outline" onClick={handleExportAtRisk} disabled={atRisk.length === 0}>
             <DownloadIcon className="size-4" />
             Exportar
           </Button>
@@ -333,25 +349,17 @@ function PatientsRecurrenceTab() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {atRiskLoaded &&
-                atRisk?.map((p) => (
-                  <TableRow key={p.patientId}>
-                    <TableCell className="pl-5">{p.name}</TableCell>
-                    <TableCell className="text-muted-foreground">{p.email || "—"}</TableCell>
-                    <TableCell>{DATE_FORMAT.format(new Date(p.lastVisit))}</TableCell>
-                    <TableCell className="pr-5 text-right font-semibold text-foreground">
-                      {p.daysSinceLastVisit}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              {!atRiskLoaded && (
-                <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={4} className="py-8 text-center text-sm text-muted-foreground">
-                    Cargando...
+              {atRisk.map((p) => (
+                <TableRow key={p.patientId}>
+                  <TableCell className="pl-5">{p.name}</TableCell>
+                  <TableCell className="text-muted-foreground">{p.email || "—"}</TableCell>
+                  <TableCell>{DATE_FORMAT.format(new Date(p.lastVisit))}</TableCell>
+                  <TableCell className="pr-5 text-right font-semibold text-foreground">
+                    {p.daysSinceLastVisit}
                   </TableCell>
                 </TableRow>
-              )}
-              {atRiskLoaded && atRisk?.length === 0 && (
+              ))}
+              {atRisk.length === 0 && (
                 <TableRow className="hover:bg-transparent">
                   <TableCell colSpan={4} className="p-0">
                     <EmptyState

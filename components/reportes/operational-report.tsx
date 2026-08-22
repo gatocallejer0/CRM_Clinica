@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { DateRange } from "react-day-picker";
 import { CalendarIcon, DownloadIcon } from "lucide-react";
 import { getOperationalReport, type OperationalReport } from "@/app/actions/reports";
-import { listAllServices, type ServiceRow } from "@/app/actions/catalog";
+import type { ServiceRow } from "@/app/actions/catalog";
 import type { AppointmentStatus } from "@/app/actions/appointments";
 import { STATUS_LABELS, STATUS_STYLE } from "@/components/agenda/appointment-meta";
 import { toClinicDateKey } from "@/lib/clinic-time";
@@ -41,19 +41,23 @@ type StatusFilter = AppointmentStatus | "all";
 const STATUS_FILTER_OPTIONS: StatusFilter[] = ["all", "confirmada", "en_espera", "atendida", "cancelada"];
 const STATUS_FILTER_LABELS: Record<StatusFilter, string> = { all: "Todos los estados", ...STATUS_LABELS };
 
-export function OperationalReportView() {
+export function OperationalReportView({
+  services,
+  initialReport,
+}: {
+  services: ServiceRow[];
+  initialReport: OperationalReport;
+}) {
   const [range, setRange] = useState<DateRange | undefined>(undefined);
   const [status, setStatus] = useState<StatusFilter>("all");
   const [serviceId, setServiceId] = useState("all");
   const [query, setQuery] = useState("");
-  const [services, setServices] = useState<ServiceRow[]>([]);
 
-  const [report, setReport] = useState<OperationalReport | null>(null);
-  const [loadedKey, setLoadedKey] = useState<string | null>(null);
-
-  useEffect(() => {
-    listAllServices().then(setServices);
-  }, []);
+  const [report, setReport] = useState<OperationalReport>(initialReport);
+  // Coincide con currentKey para los filtros por defecto de arriba — el
+  // servidor ya trajo esos datos, así que no hace falta re-pedirlos al montar.
+  const [loadedKey, setLoadedKey] = useState<string | null>("::all:all");
+  const isFirstRun = useRef(true);
 
   const fromKey = range?.from ? toClinicDateKey(range.from) : null;
   const toKey = range?.to ? toClinicDateKey(range.to) : fromKey;
@@ -61,6 +65,10 @@ export function OperationalReportView() {
   const loading = loadedKey !== currentKey;
 
   useEffect(() => {
+    if (isFirstRun.current) {
+      isFirstRun.current = false;
+      return;
+    }
     let cancelled = false;
     getOperationalReport({
       fromKey,
@@ -79,7 +87,6 @@ export function OperationalReportView() {
   }, [fromKey, toKey, status, serviceId]);
 
   const visibleRows = useMemo(() => {
-    if (!report) return [];
     const q = query.trim().toLowerCase();
     if (!q) return report.rows;
     return report.rows.filter(
@@ -87,7 +94,7 @@ export function OperationalReportView() {
     );
   }, [report, query]);
 
-  const total = report ? Object.values(report.summary).reduce((sum, n) => sum + n, 0) : 0;
+  const total = Object.values(report.summary).reduce((sum, n) => sum + n, 0);
 
   const serviceOptions = ["all", ...services.map((s) => s.id)];
   const serviceLabelById: Record<string, string> = {
@@ -176,18 +183,16 @@ export function OperationalReportView() {
         </div>
       </div>
 
-      {report && (
-        <p className="text-sm text-foreground">
-          <span className="font-semibold">{total} citas</span>
-          {" — "}
-          {(Object.entries(report.summary) as [AppointmentStatus, number][]).map(([s, count], i) => (
-            <span key={s}>
-              {i > 0 && " · "}
-              {count} {STATUS_LABELS[s].toLowerCase()}
-            </span>
-          ))}
-        </p>
-      )}
+      <p className="text-sm text-foreground">
+        <span className="font-semibold">{total} citas</span>
+        {" — "}
+        {(Object.entries(report.summary) as [AppointmentStatus, number][]).map(([s, count], i) => (
+          <span key={s}>
+            {i > 0 && " · "}
+            {count} {STATUS_LABELS[s].toLowerCase()}
+          </span>
+        ))}
+      </p>
 
       <Card className="gap-0 p-0">
         <Table>

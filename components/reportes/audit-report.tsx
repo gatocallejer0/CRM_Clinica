@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { DateRange } from "react-day-picker";
 import { DownloadIcon, HistoryIcon } from "lucide-react";
 import { getAuditReport, type AuditReportEntry } from "@/app/actions/reports";
@@ -46,11 +46,14 @@ const DATE_TIME_FORMAT = new Intl.DateTimeFormat("es-GT", { dateStyle: "medium",
 const TABLE_FILTER_OPTIONS = ["all", ...Object.keys(AUDIT_TABLE_LABELS)];
 const TABLE_FILTER_LABELS: Record<string, string> = { all: "Todas las tablas", ...AUDIT_TABLE_LABELS };
 
-export function AuditReportView() {
+export function AuditReportView({ initialEntries }: { initialEntries: AuditReportEntry[] }) {
   const [range, setRange] = useState<DateRange | undefined>(undefined);
   const [tableFilter, setTableFilter] = useState("all");
-  const [entries, setEntries] = useState<AuditReportEntry[] | null>(null);
-  const [loadedKey, setLoadedKey] = useState<string | null>(null);
+  const [entries, setEntries] = useState<AuditReportEntry[]>(initialEntries);
+  // Coincide con currentKey para los filtros por defecto de arriba — el
+  // servidor ya trajo esos datos, así que no hace falta re-pedirlos al montar.
+  const [loadedKey, setLoadedKey] = useState<string | null>("::all");
+  const isFirstRun = useRef(true);
 
   const tableName = useMemo(() => (tableFilter === "all" ? null : tableFilter), [tableFilter]);
   const fromKey = range?.from ? toClinicDateKey(range.from) : null;
@@ -59,6 +62,10 @@ export function AuditReportView() {
   const loading = loadedKey !== currentKey;
 
   useEffect(() => {
+    if (isFirstRun.current) {
+      isFirstRun.current = false;
+      return;
+    }
     let cancelled = false;
     getAuditReport({ fromKey, toKey }, tableName).then((data) => {
       if (cancelled) return;
@@ -72,7 +79,6 @@ export function AuditReportView() {
   }, [fromKey, toKey, tableName]);
 
   function handleExport() {
-    if (!entries) return;
     exportRowsToCsv(
       "reporte-auditoria",
       entries.map((entry) => ({
@@ -120,7 +126,7 @@ export function AuditReportView() {
               className="border-transparent bg-transparent shadow-none hover:border-transparent"
             />
           </div>
-          <Button variant="outline" onClick={handleExport} disabled={!entries || entries.length === 0}>
+          <Button variant="outline" onClick={handleExport} disabled={entries.length === 0}>
             <DownloadIcon className="size-4" />
             Exportar
           </Button>
@@ -140,7 +146,7 @@ export function AuditReportView() {
           </TableHeader>
           <TableBody>
             {!loading &&
-              entries?.map((entry) => (
+              entries.map((entry) => (
                 <TableRow key={entry.id}>
                   <TableCell className="pl-5 whitespace-nowrap">
                     {DATE_TIME_FORMAT.format(new Date(entry.created_at))}
@@ -160,7 +166,7 @@ export function AuditReportView() {
                 </TableCell>
               </TableRow>
             )}
-            {!loading && entries?.length === 0 && (
+            {!loading && entries.length === 0 && (
               <TableRow className="hover:bg-transparent">
                 <TableCell colSpan={5} className="p-0">
                   <EmptyState icon={HistoryIcon} message="Sin actividad en este rango." />
