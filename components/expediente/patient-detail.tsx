@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { motion } from "motion/react";
 import Link from "next/link";
-import { PillIcon, DownloadIcon } from "lucide-react";
+import { PillIcon, DownloadIcon, PlusIcon } from "lucide-react";
 import type { PatientDetail, ClinicalRecord } from "@/app/actions/clinical-records";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -90,7 +90,8 @@ export function PatientDetailPane({
           ))}
         </div>
         <Link href={`/expediente/nuevo-registro/${patient.id}`} className={buttonVariants()}>
-          + Nuevo registro
+          <PlusIcon />
+          Nuevo registro
         </Link>
       </div>
 

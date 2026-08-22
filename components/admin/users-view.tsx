@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { PencilIcon } from "lucide-react";
+import { PencilIcon, PlusIcon } from "lucide-react";
 import type { UserRow, Role } from "@/app/actions/users";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -108,7 +108,10 @@ export function UsersView({
         <p className="text-muted-foreground">
           Crea y consulta el acceso del personal de la clínica.
         </p>
-        <Button onClick={openCreateDialog}>+ Nuevo usuario</Button>
+        <Button onClick={openCreateDialog}>
+          <PlusIcon />
+          Nuevo usuario
+        </Button>
       </div>
 
       <Card className="gap-0 p-0">

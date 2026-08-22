@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { PencilIcon } from "lucide-react";
+import { PencilIcon, PlusIcon } from "lucide-react";
 import type { ServiceRow, ProductRow, SaleRow } from "@/app/actions/catalog";
 import { CATEGORY_LABELS } from "@/components/agenda/appointment-meta";
 import { Card } from "@/components/ui/card";
@@ -97,8 +97,18 @@ export function CatalogoView({
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <p className="text-muted-foreground">Servicios agendables, inventario y ventas.</p>
-        {tab === "servicios" && <Button onClick={openCreateService}>+ Nuevo servicio</Button>}
-        {tab === "productos" && <Button onClick={openCreateProduct}>+ Nuevo producto</Button>}
+        {tab === "servicios" && (
+          <Button onClick={openCreateService}>
+            <PlusIcon />
+            Nuevo servicio
+          </Button>
+        )}
+        {tab === "productos" && (
+          <Button onClick={openCreateProduct}>
+            <PlusIcon />
+            Nuevo producto
+          </Button>
+        )}
         {tab === "ventas" && (
           <Button
             onClick={() => {
@@ -106,7 +116,8 @@ export function CatalogoView({
               setSaleDialogOpen(true);
             }}
           >
-            + Nueva venta
+            <PlusIcon />
+            Nueva venta
           </Button>
         )}
       </div>

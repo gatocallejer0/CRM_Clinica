@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useRef } from "react";
 import { motion } from "motion/react";
+import { PlusIcon } from "lucide-react";
 import {
   listAppointments,
   type Appointment,
@@ -143,7 +144,10 @@ export function AgendaView({
           </button>
         </div>
 
-        <Button onClick={() => openCreateDialog()}>+ Nueva cita</Button>
+        <Button onClick={() => openCreateDialog()}>
+          <PlusIcon />
+          Nueva cita
+        </Button>
       </div>
 
       {pending && <p className="text-xs text-muted-foreground">Actualizando...</p>}
