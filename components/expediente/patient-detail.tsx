@@ -3,11 +3,12 @@
 import { useState } from "react";
 import { motion } from "motion/react";
 import Link from "next/link";
-import { PillIcon, DownloadIcon, PlusIcon } from "lucide-react";
+import { ClipboardListIcon, DownloadIcon, FileTextIcon, HistoryIcon, PillIcon, PlusIcon } from "lucide-react";
 import type { PatientDetail, ClinicalRecord } from "@/app/actions/clinical-records";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   getInitials,
   computeBmi,
@@ -144,7 +145,7 @@ export function PatientDetailPane({
       {tab === "historial" && (
         <Card className="px-5 py-4">
           {patient.records.length === 0 && (
-            <p className="py-8 text-center text-sm text-muted-foreground">Sin registros todavía.</p>
+            <EmptyState icon={HistoryIcon} message="Sin registros todavía." className="py-6" />
           )}
           {patient.records.map((r, i) => {
             const recordBmi = computeBmi(r.weight_kg, r.height_cm);
@@ -220,8 +221,8 @@ export function PatientDetailPane({
       {tab === "ordenes" && (
         <div className="flex flex-col gap-3">
           {medicalOrders.length === 0 && (
-            <Card className="px-5 py-8 text-center text-sm text-muted-foreground">
-              Sin órdenes médicas registradas.
+            <Card>
+              <EmptyState icon={ClipboardListIcon} message="Sin órdenes médicas registradas." className="py-6" />
             </Card>
           )}
           {medicalOrders.map((r) => (
@@ -234,8 +235,8 @@ export function PatientDetailPane({
       )}
 
       {tab === "documentos" && (
-        <Card className="px-5 py-8 text-center text-sm text-muted-foreground">
-          Próximamente: documentos adjuntos por paciente.
+        <Card>
+          <EmptyState icon={FileTextIcon} message="Próximamente: documentos adjuntos por paciente." className="py-6" />
         </Card>
       )}
     </div>

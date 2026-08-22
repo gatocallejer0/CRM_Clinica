@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { DateRange } from "react-day-picker";
-import { DownloadIcon } from "lucide-react";
+import { CalendarIcon, CircleCheckIcon, DownloadIcon, UsersIcon } from "lucide-react";
 import {
   getPatientsSummaryReport,
   getPatientsDataReport,
@@ -17,6 +17,7 @@ import { DateRangeFilter } from "./date-range-filter";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Table,
   TableBody,
@@ -171,8 +172,8 @@ function PatientsDetailTab() {
             )}
             {!loading && visibleRows.length === 0 && (
               <TableRow className="hover:bg-transparent">
-                <TableCell colSpan={columnCount} className="py-10 text-center text-sm text-muted-foreground">
-                  Sin pacientes que coincidan.
+                <TableCell colSpan={columnCount} className="p-0">
+                  <EmptyState icon={UsersIcon} message="Sin pacientes que coincidan." />
                 </TableCell>
               </TableRow>
             )}
@@ -288,10 +289,17 @@ function PatientsRecurrenceTab() {
                     <TableCell className="pr-5 text-right">{m.recurrencyPct}%</TableCell>
                   </TableRow>
                 ))}
-              {(summaryLoading || summary?.months.length === 0) && (
+              {summaryLoading && (
                 <TableRow className="hover:bg-transparent">
                   <TableCell colSpan={5} className="py-8 text-center text-sm text-muted-foreground">
-                    {summaryLoading ? "Cargando..." : "Sin citas en este rango."}
+                    Cargando...
+                  </TableCell>
+                </TableRow>
+              )}
+              {!summaryLoading && summary?.months.length === 0 && (
+                <TableRow className="hover:bg-transparent">
+                  <TableCell colSpan={5} className="p-0">
+                    <EmptyState icon={CalendarIcon} message="Sin citas en este rango." />
                   </TableCell>
                 </TableRow>
               )}
@@ -345,8 +353,12 @@ function PatientsRecurrenceTab() {
               )}
               {atRiskLoaded && atRisk?.length === 0 && (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={4} className="py-8 text-center text-sm text-muted-foreground">
-                    Ninguna paciente en riesgo ahora mismo.
+                  <TableCell colSpan={4} className="p-0">
+                    <EmptyState
+                      icon={CircleCheckIcon}
+                      message="Ninguna paciente en riesgo ahora mismo."
+                      tone="positive"
+                    />
                   </TableCell>
                 </TableRow>
               )}

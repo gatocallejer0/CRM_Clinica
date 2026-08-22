@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { PencilIcon, PlusIcon } from "lucide-react";
+import { PencilIcon, PlusIcon, UsersIcon } from "lucide-react";
 import type { UserRow, Role } from "@/app/actions/users";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -27,6 +27,7 @@ import {
   ComboboxEmpty,
 } from "@/components/ui/combobox";
 import { AuditLogDialog } from "@/components/shared/audit-log-dialog";
+import { EmptyState } from "@/components/ui/empty-state";
 import { UserDialog } from "./user-dialog";
 
 function getInitials(name: string): string {
@@ -234,8 +235,8 @@ export function UsersView({
             ))}
             {filtered.length === 0 && (
               <TableRow className="hover:bg-transparent">
-                <TableCell colSpan={4} className="py-10 text-center text-sm text-muted-foreground">
-                  Sin usuarios que coincidan.
+                <TableCell colSpan={4} className="p-0">
+                  <EmptyState icon={UsersIcon} message="Sin usuarios que coincidan." />
                 </TableCell>
               </TableRow>
             )}

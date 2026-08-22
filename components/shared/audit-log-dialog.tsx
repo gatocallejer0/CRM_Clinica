@@ -6,6 +6,7 @@ import { getRecordAuditLog } from "@/app/actions/audit";
 import type { AuditLogEntry } from "@/lib/audit";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 
 const ACTION_LABELS: Record<AuditLogEntry["action"], string> = {
   create: "Creación",
@@ -62,9 +63,7 @@ export function AuditLogDialog({
           <div className="flex max-h-96 flex-col gap-2.5 overflow-y-auto">
             {loading && <p className="py-4 text-center text-sm text-muted-foreground">Cargando...</p>}
             {!loading && entries.length === 0 && (
-              <p className="py-4 text-center text-sm text-muted-foreground">
-                Sin cambios registrados todavía.
-              </p>
+              <EmptyState icon={HistoryIcon} message="Sin cambios registrados todavía." className="py-6" />
             )}
             {!loading &&
               entries.map((entry) => (

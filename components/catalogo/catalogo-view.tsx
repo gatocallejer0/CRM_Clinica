@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { PencilIcon, PlusIcon } from "lucide-react";
+import { ClipboardListIcon, PackageIcon, PencilIcon, PlusIcon, ReceiptIcon } from "lucide-react";
 import type { ServiceRow, ProductRow, SaleRow } from "@/app/actions/catalog";
 import { CATEGORY_LABELS } from "@/components/agenda/appointment-meta";
 import { Card } from "@/components/ui/card";
@@ -17,6 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { AuditLogDialog } from "@/components/shared/audit-log-dialog";
+import { EmptyState } from "@/components/ui/empty-state";
 import { ServiceDialog } from "./service-dialog";
 import { ProductDialog } from "./product-dialog";
 import { SaleDialog } from "./sale-dialog";
@@ -179,8 +180,8 @@ export function CatalogoView({
               ))}
               {services.length === 0 && (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">
-                    Sin servicios todavía.
+                  <TableCell colSpan={6} className="p-0">
+                    <EmptyState icon={ClipboardListIcon} message="Sin servicios todavía." />
                   </TableCell>
                 </TableRow>
               )}
@@ -256,8 +257,8 @@ export function CatalogoView({
               ))}
               {products.length === 0 && (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={5} className="py-10 text-center text-sm text-muted-foreground">
-                    Sin productos todavía.
+                  <TableCell colSpan={5} className="p-0">
+                    <EmptyState icon={PackageIcon} message="Sin productos todavía." />
                   </TableCell>
                 </TableRow>
               )}
@@ -298,8 +299,8 @@ export function CatalogoView({
               ))}
               {sales.length === 0 && (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={5} className="py-10 text-center text-sm text-muted-foreground">
-                    Sin ventas todavía.
+                  <TableCell colSpan={5} className="p-0">
+                    <EmptyState icon={ReceiptIcon} message="Sin ventas todavía." />
                   </TableCell>
                 </TableRow>
               )}

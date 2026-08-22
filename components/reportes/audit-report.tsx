@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { DateRange } from "react-day-picker";
-import { DownloadIcon } from "lucide-react";
+import { DownloadIcon, HistoryIcon } from "lucide-react";
 import { getAuditReport, type AuditReportEntry } from "@/app/actions/reports";
 import { toClinicDateKey } from "@/lib/clinic-time";
 import { exportRowsToCsv } from "@/lib/export-csv";
@@ -17,6 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Combobox,
   ComboboxInputGroup,
@@ -161,8 +162,8 @@ export function AuditReportView() {
             )}
             {!loading && entries?.length === 0 && (
               <TableRow className="hover:bg-transparent">
-                <TableCell colSpan={5} className="py-10 text-center text-sm text-muted-foreground">
-                  Sin actividad en este rango.
+                <TableCell colSpan={5} className="p-0">
+                  <EmptyState icon={HistoryIcon} message="Sin actividad en este rango." />
                 </TableCell>
               </TableRow>
             )}

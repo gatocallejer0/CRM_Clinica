@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { DateRange } from "react-day-picker";
-import { DownloadIcon } from "lucide-react";
+import { CalendarIcon, DownloadIcon } from "lucide-react";
 import { getOperationalReport, type OperationalReport } from "@/app/actions/reports";
 import { listAllServices, type ServiceRow } from "@/app/actions/catalog";
 import type { AppointmentStatus } from "@/app/actions/appointments";
@@ -14,6 +14,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Table,
   TableBody,
@@ -231,8 +232,8 @@ export function OperationalReportView() {
             )}
             {!loading && visibleRows.length === 0 && (
               <TableRow className="hover:bg-transparent">
-                <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">
-                  Sin citas que coincidan.
+                <TableCell colSpan={6} className="p-0">
+                  <EmptyState icon={CalendarIcon} message="Sin citas que coincidan." />
                 </TableCell>
               </TableRow>
             )}
