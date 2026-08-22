@@ -8,6 +8,7 @@ import {
   Boxes,
   Receipt,
   BarChart3,
+  FileUp,
   type LucideIcon,
 } from "lucide-react";
 
@@ -56,6 +57,12 @@ export const ADMIN_SECTIONS: AdminSection[] = [
     label: "Catálogo e inventario",
     description: "Servicios, productos y ventas de la clínica.",
     icon: Boxes,
+  },
+  {
+    href: "/admin/pacientes",
+    label: "Carga masiva de pacientes",
+    description: "Importa pacientes desde un CSV (ej. una base en Excel).",
+    icon: FileUp,
   },
 ];
 
