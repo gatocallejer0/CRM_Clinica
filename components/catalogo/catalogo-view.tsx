@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/table";
 import { AuditLogDialog } from "@/components/shared/audit-log-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
+import { BackToAdminLink } from "@/components/admin/back-to-admin-link";
 import { ServiceDialog } from "./service-dialog";
 import { ProductDialog } from "./product-dialog";
 import { SaleDialog } from "./sale-dialog";
@@ -96,8 +97,9 @@ export function CatalogoView({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <p className="text-muted-foreground">Servicios agendables, inventario y ventas.</p>
+      <BackToAdminLink />
+
+      <div className="flex justify-end">
         {tab === "servicios" && (
           <Button onClick={openCreateService}>
             <PlusIcon />

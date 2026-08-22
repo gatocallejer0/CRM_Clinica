@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/combobox";
 import { AuditLogDialog } from "@/components/shared/audit-log-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
+import { BackToAdminLink } from "./back-to-admin-link";
 import { UserDialog } from "./user-dialog";
 
 function getInitials(name: string): string {
@@ -105,10 +106,9 @@ export function UsersView({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <p className="text-muted-foreground">
-          Crea y consulta el acceso del personal de la clínica.
-        </p>
+      <BackToAdminLink />
+
+      <div className="flex justify-end">
         <Button onClick={openCreateDialog}>
           <PlusIcon />
           Nuevo usuario
