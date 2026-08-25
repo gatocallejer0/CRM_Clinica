@@ -3,12 +3,13 @@
 import { useState } from "react";
 import { motion } from "motion/react";
 import Link from "next/link";
-import { ClipboardListIcon, DownloadIcon, FileTextIcon, HistoryIcon, PillIcon, PlusIcon } from "lucide-react";
+import { ClipboardListIcon, DownloadIcon, HistoryIcon, PillIcon, PlusIcon } from "lucide-react";
 import type { PatientDetail, ClinicalRecord } from "@/app/actions/clinical-records";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ClinicalDocuments } from "./clinical-documents";
 import {
   getInitials,
   computeBmi,
@@ -235,8 +236,8 @@ export function PatientDetailPane({
       )}
 
       {tab === "documentos" && (
-        <Card>
-          <EmptyState icon={FileTextIcon} message="Próximamente: documentos adjuntos por paciente." className="py-6" />
+        <Card className="px-5 py-4">
+          <ClinicalDocuments patientId={patient.id} initialDocuments={patient.documents} />
         </Card>
       )}
     </div>

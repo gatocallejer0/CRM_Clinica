@@ -4,6 +4,7 @@ import * as z from "zod";
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth/roles";
 import { createClient } from "@/lib/supabase/server";
+import { listPatientDocuments, type ClinicalDocument } from "./clinical-documents";
 
 const CLINICAL_ROLES = ["Admin", "Doctor"];
 
@@ -42,6 +43,7 @@ export type PatientDetail = {
   blood_type: string | null;
   allergies: string | null;
   records: ClinicalRecord[];
+  documents: ClinicalDocument[];
 };
 
 /** Lista de pacientes para el panel izquierdo del Expediente. Solo Admin/Doctor (RLS de clinical_records). */
@@ -92,6 +94,7 @@ export async function getPatientDetail(patientId: string): Promise<PatientDetail
   const [
     { data: patient, error },
     { data: records, error: recordsError },
+    documents,
   ] = await Promise.all([
     supabase
       .from("patient_summary")
@@ -106,6 +109,7 @@ export async function getPatientDetail(patientId: string): Promise<PatientDetail
       .eq("patient_id", patientId)
       .order("record_date", { ascending: false })
       .returns<ClinicalRecordRow[]>(),
+    listPatientDocuments(patientId),
   ]);
 
   if (error) throw new Error(error.message);
@@ -138,6 +142,7 @@ export async function getPatientDetail(patientId: string): Promise<PatientDetail
       ultrasound_days: r.ultrasound_days,
       doctor_name: r.doctor?.full_name ?? null,
     })),
+    documents,
   };
 }
 
