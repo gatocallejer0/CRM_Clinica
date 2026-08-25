@@ -3,13 +3,14 @@
 import { useEffect, useState, useTransition, useRef } from "react";
 import dynamic from "next/dynamic";
 import { motion } from "motion/react";
-import { PlusIcon } from "lucide-react";
+import { PlusIcon, RefreshCwIcon } from "lucide-react";
 import {
   listAppointments,
   type Appointment,
   type Service,
   type DoctorOption,
 } from "@/app/actions/appointments";
+import { listGoogleReservations, type GoogleReservation } from "@/app/actions/google-calendar";
 import { clinicToday, toClinicDateKey } from "@/lib/clinic-time";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,6 +28,10 @@ import {
 const loadAppointmentDialog = () => import("./appointment-dialog").then((m) => m.AppointmentDialog);
 const AppointmentDialog = dynamic(loadAppointmentDialog, { ssr: false });
 
+const loadAssignReservationDialog = () =>
+  import("./assign-reservation-dialog").then((m) => m.AssignReservationDialog);
+const AssignReservationDialog = dynamic(loadAssignReservationDialog, { ssr: false });
+
 type ViewMode = "day" | "week" | "month" | "list";
 
 const VIEW_TABS: { value: ViewMode; label: string; fcView: CalendarViewName }[] = [
@@ -38,15 +43,18 @@ const VIEW_TABS: { value: ViewMode; label: string; fcView: CalendarViewName }[] 
 
 export function AgendaView({
   initialAppointments,
+  initialReservations,
   services,
   doctors,
 }: {
   initialAppointments: Appointment[];
+  initialReservations: GoogleReservation[];
   services: Service[];
   doctors: DoctorOption[];
 }) {
   const [view, setView] = useState<ViewMode>("day");
   const [appointments, setAppointments] = useState<Appointment[]>(initialAppointments);
+  const [reservations, setReservations] = useState<GoogleReservation[]>(initialReservations);
   const [title, setTitle] = useState("");
   const [range, setRange] = useState<{ startISO: string; endISO: string } | null>(null);
   const [pending, startTransition] = useTransition();
@@ -61,19 +69,28 @@ export function AgendaView({
   );
   const [hasOpenedDialog, setHasOpenedDialog] = useState(false);
 
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [assigning, setAssigning] = useState<GoogleReservation | undefined>(undefined);
+  const [hasOpenedAssignDialog, setHasOpenedAssignDialog] = useState(false);
+
   useEffect(() => {
     const idle = window.requestIdleCallback ?? ((cb: () => void) => setTimeout(cb, 1));
     const cancelIdle = window.cancelIdleCallback ?? clearTimeout;
     const id = idle(() => {
       loadAppointmentDialog();
+      loadAssignReservationDialog();
     });
     return () => cancelIdle(id);
   }, []);
 
   function reload(startISO: string, endISO: string) {
     startTransition(async () => {
-      const data = await listAppointments(startISO, endISO);
-      setAppointments(data);
+      const [appointmentsData, reservationsData] = await Promise.all([
+        listAppointments(startISO, endISO),
+        listGoogleReservations(startISO, endISO),
+      ]);
+      setAppointments(appointmentsData);
+      setReservations(reservationsData);
     });
   }
 
@@ -106,6 +123,12 @@ export function AgendaView({
     setDialogKey((k) => k + 1);
     setHasOpenedDialog(true);
     setDialogOpen(true);
+  }
+
+  function openAssignDialog(reservation: GoogleReservation) {
+    setAssigning(reservation);
+    setHasOpenedAssignDialog(true);
+    setAssignDialogOpen(true);
   }
 
   function switchView(next: ViewMode) {
@@ -163,6 +186,16 @@ export function AgendaView({
           >
             Hoy
           </button>
+          <button
+            type="button"
+            onClick={() => range && reload(range.startISO, range.endISO)}
+            disabled={pending}
+            title="Actualizar desde Google Calendar"
+            aria-label="Actualizar desde Google Calendar"
+            className="flex size-8 items-center justify-center rounded-[10px] border border-white/80 bg-white/60 text-primary hover:bg-white/80 disabled:opacity-60"
+          >
+            <RefreshCwIcon className={`size-4 ${pending ? "animate-spin" : ""}`} />
+          </button>
         </div>
 
         <Button onClick={() => openCreateDialog()}>
@@ -176,10 +209,12 @@ export function AgendaView({
       <FullCalendarView
         ref={calendarApi}
         appointments={appointments}
+        reservations={reservations}
         initialView="timeGridDay"
         onDatesSet={handleDatesSet}
         onRequestCreate={(input) => openCreateDialog(input)}
         onRequestEdit={openEditDialog}
+        onRequestAssignReservation={openAssignDialog}
         onChanged={handleChanged}
       />
 
@@ -193,6 +228,17 @@ export function AgendaView({
           doctors={doctors}
           defaultDate={createInput?.date}
           defaultTime={createInput?.time}
+          onSaved={handleChanged}
+        />
+      )}
+
+      {hasOpenedAssignDialog && assigning && (
+        <AssignReservationDialog
+          key={assigning.googleEventId}
+          open={assignDialogOpen}
+          onOpenChange={setAssignDialogOpen}
+          reservation={assigning}
+          services={services}
           onSaved={handleChanged}
         />
       )}

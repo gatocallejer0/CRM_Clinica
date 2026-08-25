@@ -15,8 +15,9 @@ import listPlugin from "@fullcalendar/list";
 import interactionPlugin from "@fullcalendar/interaction";
 import type { Appointment } from "@/app/actions/appointments";
 import { rescheduleAppointment } from "@/app/actions/appointments";
+import type { GoogleReservation } from "@/app/actions/google-calendar";
 import { toClinicDateKey, toClinicTimeKey } from "@/lib/clinic-time";
-import { CATEGORY_COLOR } from "./appointment-meta";
+import { STATUS_STYLE } from "./appointment-meta";
 
 export type CalendarViewName = "timeGridDay" | "timeGridWeek" | "dayGridMonth" | "listMonth";
 
@@ -28,13 +29,32 @@ export type CalendarApiHandle = {
 };
 
 function EventBody({ arg }: { arg: EventContentArg }) {
+  const isList = arg.view.type === "listMonth";
+  const reservation = arg.event.extendedProps.reservation as GoogleReservation | undefined;
+
+  if (reservation) {
+    return (
+      <div
+        className={`flex w-full items-center gap-1.5 overflow-hidden text-[11px] leading-tight ${isList ? "" : "px-1 py-0.5"}`}
+      >
+        {arg.timeText && !isList && (
+          <span className="shrink-0 font-bold whitespace-nowrap text-muted-foreground">
+            {arg.timeText}
+          </span>
+        )}
+        <span className="truncate font-medium text-muted-foreground italic">
+          Reservado (Google Calendar)
+        </span>
+      </div>
+    );
+  }
+
   // El evento "mirror" que dibuja selectMirror mientras se arrastra una
   // selección no trae extendedProps (no es una cita real todavía).
   const appt = arg.event.extendedProps.appointment as Appointment | undefined;
   if (!appt) return null;
 
-  const color = CATEGORY_COLOR[appt.service_category];
-  const isList = arg.view.type === "listMonth";
+  const color = STATUS_STYLE[appt.status].color;
 
   return (
     <div
@@ -55,14 +75,25 @@ export const FullCalendarView = forwardRef<
   CalendarApiHandle,
   {
     appointments: Appointment[];
+    reservations: GoogleReservation[];
     initialView: CalendarViewName;
     onDatesSet: (info: { title: string; startISO: string; endISO: string }) => void;
     onRequestCreate: (input: { date: string; time: string }) => void;
     onRequestEdit: (appointment: Appointment) => void;
+    onRequestAssignReservation: (reservation: GoogleReservation) => void;
     onChanged: () => void;
   }
 >(function FullCalendarView(
-  { appointments, initialView, onDatesSet, onRequestCreate, onRequestEdit, onChanged },
+  {
+    appointments,
+    reservations,
+    initialView,
+    onDatesSet,
+    onRequestCreate,
+    onRequestEdit,
+    onRequestAssignReservation,
+    onChanged,
+  },
   ref,
 ) {
   const calendarRef = useRef<FullCalendar | null>(null);
@@ -74,21 +105,34 @@ export const FullCalendarView = forwardRef<
     today: () => calendarRef.current?.getApi().today(),
   }));
 
-  const events = appointments.map((a) => {
-    const start = new Date(a.scheduled_at);
-    const end = new Date(start.getTime() + a.duration_minutes * 60000);
-    const color = CATEGORY_COLOR[a.service_category];
-    return {
-      id: a.id,
-      title: a.patient_name,
-      start: a.scheduled_at,
-      end: end.toISOString(),
-      backgroundColor: `color-mix(in oklch, ${color} 14%, white)`,
-      borderColor: color,
-      textColor: "var(--foreground)",
-      extendedProps: { appointment: a },
-    };
-  });
+  const events = [
+    ...appointments.map((a) => {
+      const start = new Date(a.scheduled_at);
+      const end = new Date(start.getTime() + a.duration_minutes * 60000);
+      const { color, backgroundColor } = STATUS_STYLE[a.status];
+      return {
+        id: a.id,
+        title: a.patient_name,
+        start: a.scheduled_at,
+        end: end.toISOString(),
+        backgroundColor,
+        borderColor: color,
+        textColor: "var(--foreground)",
+        extendedProps: { appointment: a },
+      };
+    }),
+    ...reservations.map((r) => ({
+      id: `gcal-${r.googleEventId}`,
+      title: "Reservado (Google Calendar)",
+      start: r.startISO,
+      end: r.endISO,
+      backgroundColor: "color-mix(in oklch, var(--muted-foreground) 10%, white)",
+      borderColor: "var(--muted-foreground)",
+      textColor: "var(--muted-foreground)",
+      editable: false,
+      extendedProps: { reservation: r },
+    })),
+  ];
 
   function handleSelect(info: DateSelectArg) {
     onRequestCreate({
@@ -99,6 +143,11 @@ export const FullCalendarView = forwardRef<
   }
 
   function handleEventClick(info: EventClickArg) {
+    const reservation = info.event.extendedProps.reservation as GoogleReservation | undefined;
+    if (reservation) {
+      onRequestAssignReservation(reservation);
+      return;
+    }
     onRequestEdit(info.event.extendedProps.appointment as Appointment);
   }
 
@@ -145,8 +194,8 @@ export const FullCalendarView = forwardRef<
         // dependencia extra.
         height={700}
         firstDay={1}
-        slotMinTime="06:00:00"
-        slotMaxTime="20:00:00"
+        slotMinTime="05:00:00"
+        slotMaxTime="22:00:00"
         nowIndicator
         selectable
         selectMirror

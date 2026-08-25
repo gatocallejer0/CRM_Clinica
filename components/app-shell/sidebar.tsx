@@ -162,27 +162,33 @@ export function Sidebar({
       </nav>
 
       <div className="flex items-center gap-2.5 border-t border-[rgba(200,160,170,0.3)] pt-3.5">
-        <div className="flex size-[38px] shrink-0 items-center justify-center rounded-full bg-[image:var(--gradient-neutral)] font-heading text-[13px] font-bold text-white">
-          {getInitials(profile.full_name)}
-        </div>
-        {expanded && (
-          <>
+        <Link
+          href="/cuenta"
+          title="Mi cuenta"
+          className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl p-1 -m-1 hover:bg-accent"
+        >
+          <div className="flex size-[38px] shrink-0 items-center justify-center rounded-full bg-[image:var(--gradient-neutral)] font-heading text-[13px] font-bold text-white">
+            {getInitials(profile.full_name)}
+          </div>
+          {expanded && (
             <div className="min-w-0 flex-1">
               <div className="truncate text-[13px] font-semibold text-foreground">
                 {profile.full_name}
               </div>
               <div className="truncate text-[11px] text-muted-foreground">{profile.role.name}</div>
             </div>
-            <form action={logout}>
-              <button
-                type="submit"
-                title="Cerrar sesión"
-                className="shrink-0 text-[11px] font-semibold whitespace-nowrap text-primary hover:underline"
-              >
-                Salir
-              </button>
-            </form>
-          </>
+          )}
+        </Link>
+        {expanded && (
+          <form action={logout}>
+            <button
+              type="submit"
+              title="Cerrar sesión"
+              className="shrink-0 text-[11px] font-semibold whitespace-nowrap text-primary hover:underline"
+            >
+              Salir
+            </button>
+          </form>
         )}
       </div>
     </div>

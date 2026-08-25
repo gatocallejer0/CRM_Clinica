@@ -6,7 +6,7 @@
  * servidor donde corra Next.js.
  */
 
-const CLINIC_TZ = "America/Guatemala";
+export const CLINIC_TZ = "America/Guatemala";
 const CLINIC_UTC_OFFSET = "-06:00";
 
 /**

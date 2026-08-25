@@ -4,7 +4,8 @@ import { ADMIN_SECTIONS } from "@/components/app-shell/nav-config";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
 export default async function AdminCenterPage() {
-  await requireRole(["Admin"]);
+  const profile = await requireRole(["Admin", "Doctor"]);
+  const sections = ADMIN_SECTIONS.filter((section) => section.roles.includes(profile.role.name));
 
   return (
     <div className="flex flex-col gap-6">
@@ -13,7 +14,7 @@ export default async function AdminCenterPage() {
       </p>
 
       <div className="grid grid-cols-1 gap-4 min-[640px]:grid-cols-2 min-[1100px]:grid-cols-3">
-        {ADMIN_SECTIONS.map((section) => {
+        {sections.map((section) => {
           const Icon = section.icon;
           return (
             <Link key={section.href} href={section.href} className="block">

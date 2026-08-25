@@ -19,9 +19,3 @@ export const CATEGORY_LABELS: Record<ServiceCategory, string> = {
   general: "General",
   seguimiento: "Seguimiento",
 };
-
-export const CATEGORY_COLOR: Record<ServiceCategory, string> = {
-  prenatal: "var(--type-prenatal)",
-  general: "var(--type-general)",
-  seguimiento: "var(--type-seguimiento)",
-};

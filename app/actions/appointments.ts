@@ -6,7 +6,21 @@ import { requireRole } from "@/lib/auth/roles";
 import { createClient } from "@/lib/supabase/server";
 import { combineClinicDateTime, formatClinicTime } from "@/lib/clinic-time";
 import { rateLimit, getClientIp, RateLimitError } from "@/lib/rate-limit";
+import { syncAppointmentToGoogleCalendar, getDoctorGoogleBusyBlocks } from "./google-calendar";
 import type { SupabaseClient } from "@supabase/supabase-js";
+
+/**
+ * La sincronización con Google Calendar es best-effort a propósito: el CRM
+ * es la fuente de verdad de la cita, así que un fallo de Google (token
+ * vencido, API caída, etc.) nunca debe impedir que la cita se guarde.
+ */
+async function syncToGoogleCalendarSilently(appointmentId: string) {
+  try {
+    await syncAppointmentToGoogleCalendar(appointmentId);
+  } catch (err) {
+    console.error("[syncToGoogleCalendarSilently] Error:", err);
+  }
+}
 
 const SCHEDULING_ROLES = ["Admin", "Doctor", "Recepción"];
 
@@ -97,22 +111,61 @@ async function findOverlaps(
     return newStart < rowEnd && rowStart < newEnd;
   });
 
-  if (overlapping.length === 0) return [];
+  const conflicts: OverlapConflict[] = [];
 
-  const patientIds = [...new Set(overlapping.map((r) => r.patient_id))];
-  const namesByPatientId = new Map<string, string>();
-  const { data: patients } = await supabase
-    .from("patient_summary")
-    .select("id, full_name")
-    .in("id", patientIds);
-  for (const p of patients ?? []) {
-    namesByPatientId.set(p.id, p.full_name ?? "Paciente sin nombre");
+  if (overlapping.length > 0) {
+    const patientIds = [...new Set(overlapping.map((r) => r.patient_id))];
+    const namesByPatientId = new Map<string, string>();
+    const { data: patients } = await supabase
+      .from("patient_summary")
+      .select("id, full_name")
+      .in("id", patientIds);
+    for (const p of patients ?? []) {
+      namesByPatientId.set(p.id, p.full_name ?? "Paciente sin nombre");
+    }
+
+    conflicts.push(
+      ...overlapping.map((row) => ({
+        patientName: namesByPatientId.get(row.patient_id) ?? "Paciente sin nombre",
+        timeLabel: formatClinicTime(new Date(row.scheduled_at)),
+      })),
+    );
   }
 
-  return overlapping.map((row) => ({
-    patientName: namesByPatientId.get(row.patient_id) ?? "Paciente sin nombre",
-    timeLabel: formatClinicTime(new Date(row.scheduled_at)),
-  }));
+  // Bloqueos del Google Calendar de la doctora (si lo tiene conectado) —
+  // no son citas del CRM, pero igual bloquean el horario. Al editar una
+  // cita que ya tiene su propio evento espejo en Google, ese evento se
+  // excluye — si no, la cita se traslaparía consigo misma. Falla en
+  // silencio: getDoctorGoogleBusyBlocks nunca lanza.
+  let excludeGoogleEventId: string | undefined;
+  if (excludeId) {
+    const { data: current } = await supabase
+      .from("appointments")
+      .select("google_event_id")
+      .eq("id", excludeId)
+      .maybeSingle();
+    excludeGoogleEventId = current?.google_event_id ?? undefined;
+  }
+
+  const busyBlocks = await getDoctorGoogleBusyBlocks(
+    doctorId,
+    dayStart.toISOString(),
+    dayEnd.toISOString(),
+    excludeGoogleEventId,
+  );
+  const busyConflicts = busyBlocks.filter((block) => {
+    const blockStart = new Date(block.startISO).getTime();
+    const blockEnd = new Date(block.endISO).getTime();
+    return newStart < blockEnd && blockStart < newEnd;
+  });
+  conflicts.push(
+    ...busyConflicts.map((block) => ({
+      patientName: "Bloqueado en su Google Calendar",
+      timeLabel: formatClinicTime(new Date(block.startISO)),
+    })),
+  );
+
+  return conflicts;
 }
 
 /** Público para el personal con acceso a Agenda; RLS filtra por rol. */
@@ -198,6 +251,35 @@ export async function listAppointments(fromISO: string, toISO: string): Promise<
   if (error) throw new Error(error.message);
   const rows = data ?? [];
 
+  // Auto-marca como "atendida" las citas confirmadas/en espera cuyo horario
+  // ya terminó — evita tener que hacerlo a mano en cada cita. El estado
+  // sigue siendo editable después (p.ej. si en realidad se canceló o
+  // reprogramó y no se alcanzó a corregir antes de que pasara la hora).
+  const now = Date.now();
+  const staleIds = rows
+    .filter(
+      (r) =>
+        (r.status === "confirmada" || r.status === "en_espera") &&
+        new Date(r.scheduled_at).getTime() + r.duration_minutes * 60000 < now,
+    )
+    .map((r) => r.id);
+
+  if (staleIds.length > 0) {
+    const { error: updateError } = await supabase
+      .from("appointments")
+      .update({ status: "atendida" })
+      .in("id", staleIds);
+
+    if (updateError) {
+      console.error("[listAppointments] Error auto-marcando atendida:", updateError.message);
+    } else {
+      const staleIdSet = new Set(staleIds);
+      for (const row of rows) {
+        if (staleIdSet.has(row.id)) row.status = "atendida";
+      }
+    }
+  }
+
   // patient_summary es una vista (sin FK declarada hacia appointments), así
   // que no se puede embeber en el select de arriba: se consulta aparte y se
   // mergea en memoria por patient_id.
@@ -229,6 +311,49 @@ export async function listAppointments(fromISO: string, toISO: string): Promise<
     service_name: row.service?.name ?? "",
     service_category: row.service?.category ?? "general",
   }));
+}
+
+/**
+ * patients ya no tiene columna full_name (0004_dynamic_form.sql la movió a
+ * patient_answers, junto con el resto de campos del formulario dinámico) —
+ * el nombre se guarda como respuesta a la pregunta "full_name" del catálogo
+ * form_fields, igual que hace registerPatient(). Compartido entre
+ * createAppointment y assignPatientToGoogleReservation.
+ */
+async function createNewPatientRow(
+  supabase: SupabaseClient,
+  name: string,
+  email: string,
+): Promise<{ id: string } | { error: string }> {
+  const { data: newPatient, error: patientError } = await supabase
+    .from("patients")
+    .insert({ email })
+    .select("id")
+    .single();
+
+  if (patientError) {
+    console.error("[createNewPatientRow] Error creando paciente:", patientError.message);
+    return { error: "No se pudo crear la paciente." };
+  }
+
+  const { data: nameField } = await supabase
+    .from("form_fields")
+    .select("id")
+    .eq("key", "full_name")
+    .maybeSingle();
+
+  if (nameField) {
+    const { error: answerError } = await supabase.from("patient_answers").insert({
+      patient_id: newPatient.id,
+      field_id: nameField.id,
+      value: name,
+    });
+    if (answerError) {
+      console.error("[createNewPatientRow] Error guardando nombre:", answerError.message);
+    }
+  }
+
+  return { id: newPatient.id };
 }
 
 const CreateAppointmentSchema = z
@@ -306,55 +431,36 @@ export async function createAppointment(
 
   let patientId = parsed.data.patientId;
   if (parsed.data.patientMode === "new") {
-    // patients ya no tiene columna full_name (0004_dynamic_form.sql la movió
-    // a patient_answers, junto con el resto de campos del formulario
-    // dinámico) — el nombre se guarda como respuesta a la pregunta "full_name"
-    // del catálogo form_fields, igual que hace registerPatient().
-    const { data: newPatient, error: patientError } = await supabase
-      .from("patients")
-      .insert({ email: parsed.data.newPatientEmail })
-      .select("id")
-      .single();
-
-    if (patientError) {
-      console.error("[createAppointment] Error creando paciente:", patientError.message);
-      return { error: "No se pudo crear la paciente." };
-    }
-    patientId = newPatient.id;
-
-    const { data: nameField } = await supabase
-      .from("form_fields")
-      .select("id")
-      .eq("key", "full_name")
-      .maybeSingle();
-
-    if (nameField) {
-      const { error: answerError } = await supabase.from("patient_answers").insert({
-        patient_id: patientId,
-        field_id: nameField.id,
-        value: parsed.data.newPatientName,
-      });
-      if (answerError) {
-        console.error("[createAppointment] Error guardando nombre:", answerError.message);
-      }
-    }
+    const result = await createNewPatientRow(
+      supabase,
+      parsed.data.newPatientName!,
+      parsed.data.newPatientEmail!,
+    );
+    if ("error" in result) return { error: result.error };
+    patientId = result.id;
   }
 
-  const { error } = await supabase.from("appointments").insert({
-    patient_id: patientId,
-    doctor_id: parsed.data.doctorId,
-    service_id: parsed.data.serviceId,
-    scheduled_at: scheduledAtForOverlap.toISOString(),
-    duration_minutes: parsed.data.durationMinutes,
-    status: parsed.data.status,
-    notes: parsed.data.notes || null,
-    created_by: profile.id,
-  });
+  const { data: newAppointment, error } = await supabase
+    .from("appointments")
+    .insert({
+      patient_id: patientId,
+      doctor_id: parsed.data.doctorId,
+      service_id: parsed.data.serviceId,
+      scheduled_at: scheduledAtForOverlap.toISOString(),
+      duration_minutes: parsed.data.durationMinutes,
+      status: parsed.data.status,
+      notes: parsed.data.notes || null,
+      created_by: profile.id,
+    })
+    .select("id")
+    .single();
 
   if (error) {
     console.error("[createAppointment] Supabase error:", error.message);
     return { error: "No se pudo agendar la cita." };
   }
+
+  await syncToGoogleCalendarSilently(newAppointment.id);
 
   revalidatePath("/agenda");
   return { success: true };
@@ -424,6 +530,8 @@ export async function updateAppointment(
     return { error: "No se pudo actualizar la cita." };
   }
 
+  await syncToGoogleCalendarSilently(parsed.data.id);
+
   revalidatePath("/agenda");
   return { success: true };
 }
@@ -462,6 +570,105 @@ export async function rescheduleAppointment(
 
   if (error) return { error: error.message };
 
+  await syncToGoogleCalendarSilently(id);
+
   revalidatePath("/agenda");
   return {};
+}
+
+const AssignReservationSchema = z
+  .object({
+    googleEventId: z.string().min(1),
+    doctorId: z.string().uuid(),
+    startISO: z.string().min(1),
+    endISO: z.string().min(1),
+    patientMode: z.enum(["existing", "new"]),
+    patientId: z.string().uuid().optional(),
+    newPatientName: z.string().trim().min(2).optional(),
+    newPatientEmail: z.string().trim().email().optional(),
+    serviceId: z.string().uuid({ error: "Selecciona un servicio." }),
+    notes: z.string().trim().optional(),
+  })
+  .refine((data) => (data.patientMode === "existing" ? !!data.patientId : true), {
+    error: "Selecciona una paciente.",
+    path: ["patientId"],
+  })
+  .refine((data) => (data.patientMode === "new" ? !!data.newPatientName : true), {
+    error: "Escribe el nombre de la paciente.",
+    path: ["newPatientName"],
+  })
+  .refine((data) => (data.patientMode === "new" ? !!data.newPatientEmail : true), {
+    error: "Escribe un correo válido.",
+    path: ["newPatientEmail"],
+  });
+
+export type AssignReservationFormState = { error?: string; success?: boolean } | undefined;
+
+/**
+ * Asigna paciente a un evento que ya existe en el Google Calendar de la
+ * doctora (una "reserva" detectada por listGoogleReservations). A propósito
+ * NO llama a la API de Google: el evento ya existe allá, así que solo se
+ * guarda su id en la cita nueva — cualquier edición futura desde el flujo
+ * normal (updateAppointment) sí sincroniza, actualizando o borrando ese
+ * mismo evento en vez de crear uno duplicado.
+ */
+export async function assignPatientToGoogleReservation(
+  _prevState: AssignReservationFormState,
+  formData: FormData,
+): Promise<AssignReservationFormState> {
+  const profile = await requireRole(SCHEDULING_ROLES);
+
+  const parsed = AssignReservationSchema.safeParse({
+    googleEventId: formData.get("googleEventId"),
+    doctorId: formData.get("doctorId"),
+    startISO: formData.get("startISO"),
+    endISO: formData.get("endISO"),
+    patientMode: formData.get("patientMode") || "existing",
+    patientId: formData.get("patientId") || undefined,
+    newPatientName: formData.get("newPatientName") || undefined,
+    newPatientEmail: formData.get("newPatientEmail") || undefined,
+    serviceId: formData.get("serviceId"),
+    notes: formData.get("notes"),
+  });
+
+  if (!parsed.success) {
+    return { error: "Revisa los datos de la cita." };
+  }
+
+  const supabase = await createClient();
+
+  let patientId = parsed.data.patientId;
+  if (parsed.data.patientMode === "new") {
+    const result = await createNewPatientRow(
+      supabase,
+      parsed.data.newPatientName!,
+      parsed.data.newPatientEmail!,
+    );
+    if ("error" in result) return { error: result.error };
+    patientId = result.id;
+  }
+
+  const durationMinutes = Math.round(
+    (new Date(parsed.data.endISO).getTime() - new Date(parsed.data.startISO).getTime()) / 60000,
+  );
+
+  const { error } = await supabase.from("appointments").insert({
+    patient_id: patientId,
+    doctor_id: parsed.data.doctorId,
+    service_id: parsed.data.serviceId,
+    scheduled_at: parsed.data.startISO,
+    duration_minutes: durationMinutes,
+    status: "confirmada",
+    notes: parsed.data.notes || null,
+    created_by: profile.id,
+    google_event_id: parsed.data.googleEventId,
+  });
+
+  if (error) {
+    console.error("[assignPatientToGoogleReservation] Supabase error:", error.message);
+    return { error: "No se pudo asignar la reserva." };
+  }
+
+  revalidatePath("/agenda");
+  return { success: true };
 }
