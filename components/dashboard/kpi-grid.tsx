@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 
 export type Kpi = {
   label: string;
-  value: number;
+  value: number | string;
 };
 
 export function KpiGrid({ kpis }: { kpis: Kpi[] }) {

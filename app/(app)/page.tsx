@@ -1,39 +1,72 @@
-import Link from "next/link";
+import { ExternalLinkIcon } from "lucide-react";
 import { requireRole } from "@/lib/auth/roles";
 import { createClient } from "@/lib/supabase/server";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { listAppointments } from "@/app/actions/appointments";
+import { getAtRiskPatients } from "@/app/actions/reports";
+import { clinicToday, addDays, startOfMonth } from "@/lib/clinic-time";
+import { formatCurrency } from "@/lib/format";
+import { GENERAL_NAV, ADMIN_NAV } from "@/components/app-shell/nav-config";
 import { KpiGrid } from "@/components/dashboard/kpi-grid";
+import { TodaysAgendaCard } from "@/components/dashboard/todays-agenda-card";
+import { AtRiskCard } from "@/components/dashboard/at-risk-card";
+import { QuickLinksCard } from "@/components/dashboard/quick-links-card";
 
 export default async function DashboardPage() {
   const profile = await requireRole(["Admin", "Doctor", "Recepción"]);
   const supabase = await createClient();
 
-  const [{ count: patientsCount }, { count: activeFieldsCount }] = await Promise.all([
+  const isAdmin = profile.role.name === "Admin";
+  const canSeeCobros = isAdmin || profile.role.name === "Recepción";
+
+  const today = clinicToday();
+  const todayISO = today.toISOString();
+  const tomorrowISO = addDays(today, 1).toISOString();
+  const monthStartISO = startOfMonth(today).toISOString();
+
+  const [{ count: patientsCount }, appointments] = await Promise.all([
     supabase.from("patients").select("*", { count: "exact", head: true }),
-    supabase.from("form_fields").select("*", { count: "exact", head: true }).eq("active", true),
+    listAppointments(todayISO, tomorrowISO),
   ]);
 
-  const isAdmin = profile.role.name === "Admin";
-  let activeStaffCount: number | null = null;
+  let activeStaffCount = 0;
+  let atRiskPatients: Awaited<ReturnType<typeof getAtRiskPatients>> = [];
   if (isAdmin) {
-    const { count } = await supabase
-      .from("profiles")
-      .select("*", { count: "exact", head: true })
-      .eq("active", true);
+    const [{ count }, atRisk] = await Promise.all([
+      supabase.from("profiles").select("*", { count: "exact", head: true }).eq("active", true),
+      getAtRiskPatients(),
+    ]);
     activeStaffCount = count ?? 0;
+    atRiskPatients = atRisk;
+  }
+
+  let monthRevenue = 0;
+  if (canSeeCobros) {
+    const { data: monthSales } = await supabase
+      .from("sales")
+      .select("total")
+      .gte("created_at", monthStartISO)
+      .eq("status", "pagado");
+    monthRevenue = (monthSales ?? []).reduce((sum, s) => sum + s.total, 0);
   }
 
   const kpis = [
     { label: "Pacientes registradas", value: patientsCount ?? 0 },
-    { label: "Preguntas activas del formulario", value: activeFieldsCount ?? 0 },
-    ...(isAdmin ? [{ label: "Personal activo", value: activeStaffCount ?? 0 }] : []),
+    { label: "Citas de hoy", value: appointments.length },
+    ...(canSeeCobros ? [{ label: "Cobrado este mes", value: formatCurrency(monthRevenue) }] : []),
+    ...(isAdmin ? [{ label: "Personal activo", value: activeStaffCount }] : []),
   ];
+
+  const quickLinks = [...GENERAL_NAV, ...ADMIN_NAV].filter(
+    (item) => item.href !== "/" && item.roles.includes(profile.role.name),
+  );
+  if (isAdmin) {
+    quickLinks.push({
+      href: "/registro-paciente",
+      label: "Registro de pacientes",
+      icon: ExternalLinkIcon,
+      roles: ["Admin"],
+    });
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -45,35 +78,16 @@ export default async function DashboardPage() {
 
       <KpiGrid kpis={kpis} />
 
-      {isAdmin && (
-        <div className="grid grid-cols-1 gap-4 min-[640px]:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Admin Center</CardTitle>
-              <CardDescription>
-                Usuarios, formulario de pacientes, catálogo, cobros y reportes.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Link href="/admin" className="text-sm font-semibold text-primary hover:underline">
-                Ir a Admin Center →
-              </Link>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Registro de pacientes</CardTitle>
-              <CardDescription>Formulario público, sin necesidad de cuenta.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Link href="/registro-paciente" className="text-sm font-semibold text-primary hover:underline">
-                Ver formulario de registro →
-              </Link>
-            </CardContent>
-          </Card>
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-3">
+        <div className="flex flex-col gap-4 lg:col-span-2">
+          <TodaysAgendaCard appointments={appointments} />
+          {isAdmin && <AtRiskCard patients={atRiskPatients.slice(0, 5)} total={atRiskPatients.length} />}
         </div>
-      )}
+
+        <div className="flex flex-col gap-4">
+          <QuickLinksCard items={quickLinks} />
+        </div>
+      </div>
     </div>
   );
 }
