@@ -15,68 +15,18 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Field, FormStagger } from "@/components/ui/field";
-import { DatePickerField } from "@/components/ui/date-picker-field";
-import {
-  Combobox,
-  ComboboxInputGroup,
-  ComboboxInput,
-  ComboboxClear,
-  ComboboxTrigger,
-  ComboboxPopup,
-  ComboboxList,
-  ComboboxItem,
-  ComboboxEmpty,
-} from "@/components/ui/combobox";
+import { FieldGroup } from "@/components/patient-form-fields";
 
-function FieldInput({ field }: { field: FormField }) {
-  switch (field.field_type) {
-    case "textarea":
-      return <Textarea id={field.key} name={field.key} required={field.required} />;
-    case "number":
-      return (
-        <Input id={field.key} name={field.key} type="number" required={field.required} />
-      );
-    case "date":
-      return <DatePickerField id={field.key} name={field.key} required={field.required} />;
-    case "select": {
-      const activeOptions = field.options.filter((option) => option.active);
-      return (
-        <Combobox items={activeOptions.map((o) => o.value)} name={field.key} required={field.required}>
-          <ComboboxInputGroup>
-            <ComboboxInput id={field.key} placeholder="Selecciona una opción" />
-            <ComboboxClear />
-            <ComboboxTrigger />
-          </ComboboxInputGroup>
-          <ComboboxPopup>
-            <ComboboxEmpty>Sin resultados.</ComboboxEmpty>
-            <ComboboxList>
-              {(value: string) => (
-                <ComboboxItem key={value} value={value}>
-                  {value}
-                </ComboboxItem>
-              )}
-            </ComboboxList>
-          </ComboboxPopup>
-        </Combobox>
-      );
-    }
-    default:
-      return <Input id={field.key} name={field.key} type="text" required={field.required} />;
-  }
-}
-
-function FieldGroup({ field }: { field: FormField }) {
-  return (
-    <Field label={field.label} htmlFor={field.key} required={field.required}>
-      <FieldInput field={field} />
-    </Field>
-  );
-}
-
-export function PatientRegistrationForm({ fields }: { fields: FormField[] }) {
+export function PatientRegistrationForm({
+  fields,
+  wide = false,
+}: {
+  fields: FormField[];
+  /** Diseño ancho de 2 columnas (usado dentro del popup "Nuevo paciente" de Expediente); por defecto, una columna angosta para la página pública. */
+  wide?: boolean;
+}) {
   const [state, action, pending] = useActionState<
     PatientRegistrationState,
     FormData
@@ -84,10 +34,13 @@ export function PatientRegistrationForm({ fields }: { fields: FormField[] }) {
 
   const generalFields = fields.filter((f) => f.section === "general");
   const medicalFields = fields.filter((f) => f.section === "medical_history");
+  const fieldsClassName = wide ? "grid grid-cols-2 gap-4" : "flex flex-col gap-4";
 
   if (state?.success) {
     return (
-      <Card className="relative w-full max-w-lg animate-in fade-in slide-in-from-bottom-2 duration-500">
+      <Card
+        className={`relative w-full animate-in fade-in slide-in-from-bottom-2 duration-500 ${wide ? "" : "max-w-lg"}`}
+      >
         <CardHeader>
           <CardTitle>¡Registro completo!</CardTitle>
           <CardDescription>
@@ -102,7 +55,7 @@ export function PatientRegistrationForm({ fields }: { fields: FormField[] }) {
   return (
     <form
       action={action}
-      className="relative flex w-full max-w-lg animate-in flex-col gap-6 fade-in slide-in-from-bottom-2 duration-500"
+      className={`relative flex w-full animate-in flex-col gap-6 fade-in slide-in-from-bottom-2 duration-500 ${wide ? "" : "max-w-lg"}`}
     >
       <Card>
         <CardHeader>
@@ -113,13 +66,13 @@ export function PatientRegistrationForm({ fields }: { fields: FormField[] }) {
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <FormStagger className="flex flex-col gap-4">
+          <FormStagger className={fieldsClassName}>
             <Field label="Correo electrónico" htmlFor="email" required>
               <Input id="email" name="email" type="email" required />
             </Field>
 
             {generalFields.map((field) => (
-              <FieldGroup key={field.id} field={field} />
+              <FieldGroup key={field.id} field={field} twoColumn={wide} />
             ))}
           </FormStagger>
         </CardContent>
@@ -131,9 +84,9 @@ export function PatientRegistrationForm({ fields }: { fields: FormField[] }) {
             <CardTitle>Antecedentes médicos</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
-            <FormStagger className="flex flex-col gap-4">
+            <FormStagger className={fieldsClassName}>
               {medicalFields.map((field) => (
-                <FieldGroup key={field.id} field={field} />
+                <FieldGroup key={field.id} field={field} twoColumn={wide} />
               ))}
             </FormStagger>
           </CardContent>

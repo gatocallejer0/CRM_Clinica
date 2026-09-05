@@ -12,6 +12,12 @@ export type PatientListItem = {
   id: string;
   full_name: string;
   email: string;
+  phone: string | null;
+  national_id: string | null;
+  nit: string | null;
+  birth_date: string | null;
+  age: string | null;
+  emergency_contact: string | null;
   last_visit: string | null;
 };
 
@@ -38,8 +44,12 @@ export type PatientDetail = {
   id: string;
   full_name: string;
   email: string;
+  national_id: string | null;
   phone: string | null;
   age: string | null;
+  birth_date: string | null;
+  emergency_contact: string | null;
+  nit: string | null;
   blood_type: string | null;
   allergies: string | null;
   records: ClinicalRecord[];
@@ -57,7 +67,7 @@ export async function listPatientsForExpediente(): Promise<PatientListItem[]> {
   ] = await Promise.all([
     supabase
       .from("patient_summary")
-      .select("id, full_name, email")
+      .select("id, full_name, email, phone, national_id, nit, birth_date, age, emergency_contact")
       .order("full_name", { nullsFirst: false }),
     supabase
       .from("clinical_records")
@@ -79,6 +89,12 @@ export async function listPatientsForExpediente(): Promise<PatientListItem[]> {
     id: p.id,
     full_name: p.full_name ?? "Paciente sin nombre",
     email: p.email,
+    phone: p.phone,
+    national_id: p.national_id,
+    nit: p.nit,
+    birth_date: p.birth_date,
+    age: p.age,
+    emergency_contact: p.emergency_contact,
     last_visit: lastVisitByPatientId.get(p.id) ?? null,
   }));
 }
@@ -98,7 +114,9 @@ export async function getPatientDetail(patientId: string): Promise<PatientDetail
   ] = await Promise.all([
     supabase
       .from("patient_summary")
-      .select("id, full_name, email, phone, age, blood_type, allergies")
+      .select(
+        "id, full_name, email, national_id, phone, age, birth_date, emergency_contact, nit, blood_type, allergies",
+      )
       .eq("id", patientId)
       .maybeSingle(),
     supabase
@@ -120,8 +138,12 @@ export async function getPatientDetail(patientId: string): Promise<PatientDetail
     id: patient.id,
     full_name: patient.full_name ?? "Paciente sin nombre",
     email: patient.email,
+    national_id: patient.national_id,
     phone: patient.phone,
     age: patient.age,
+    birth_date: patient.birth_date,
+    emergency_contact: patient.emergency_contact,
+    nit: patient.nit,
     blood_type: patient.blood_type,
     allergies: patient.allergies,
     records: (records ?? []).map((r) => ({

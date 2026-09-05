@@ -23,11 +23,11 @@ export type NavItem = {
 export const GENERAL_NAV: NavItem[] = [
   { href: "/", label: "Dashboard", icon: LayoutGrid, roles: ["Admin", "Doctor", "Recepción"] },
   { href: "/agenda", label: "Agenda", icon: CalendarDays, roles: ["Admin", "Doctor", "Recepción"] },
-  { href: "/expediente", label: "Expediente clínico", icon: FileText, roles: ["Admin", "Doctor"] },
+  { href: "/expediente", label: "Pacientes", icon: FileText, roles: ["Admin", "Doctor"] },
 ];
 
 export const ADMIN_NAV: NavItem[] = [
-  { href: "/cobros", label: "Cobros y pagos", icon: Receipt, roles: ["Admin"] },
+  { href: "/cobros", label: "Cobros y pagos", icon: Receipt, roles: ["Admin", "Recepción"] },
   { href: "/reportes", label: "Reportes", icon: BarChart3, roles: ["Admin"] },
   { href: "/admin", label: "Admin Center", icon: ShieldCheck, roles: ["Admin", "Doctor"] },
 ];
@@ -87,6 +87,8 @@ const TITLES: Record<string, string> = Object.fromEntries([
 
 export function getScreenTitle(pathname: string): string {
   if (pathname.startsWith("/expediente/nuevo-registro")) return "Nuevo registro clínico";
+  if (pathname.startsWith("/expediente/ficha/")) return "Ficha de paciente";
+  if (pathname.startsWith("/expediente/")) return "Expediente clínico";
   if (pathname === "/cuenta") return "Mi cuenta";
   return TITLES[pathname] ?? "CRM Clínica";
 }

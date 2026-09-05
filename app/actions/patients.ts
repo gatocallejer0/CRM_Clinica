@@ -1,8 +1,10 @@
 "use server";
 
 import * as z from "zod";
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { rateLimit, getClientIp, RateLimitError } from "@/lib/rate-limit";
+import { requireRole } from "@/lib/auth/roles";
 
 const EmailSchema = z.email({ error: "Ingresa un correo válido." });
 
@@ -59,5 +61,119 @@ export async function registerPatient(
     };
   }
 
+  return { success: true };
+}
+
+export type UpdatePatientState =
+  | {
+      error?: string;
+      success?: boolean;
+    }
+  | undefined;
+
+/**
+ * Admin/Doctor: obtiene el correo y todas las respuestas guardadas de una
+ * paciente (catálogo dinámico), para precargar la ficha editable completa.
+ */
+export async function getPatientFicha(
+  patientId: string,
+): Promise<{ email: string; answers: Record<string, string> } | null> {
+  await requireRole(["Admin", "Doctor"]);
+  const supabase = await createClient();
+
+  const [{ data: patient, error: patientError }, { data: rows, error: answersError }] = await Promise.all([
+    supabase.from("patients").select("email").eq("id", patientId).maybeSingle(),
+    supabase
+      .from("patient_answers")
+      .select("value, field:form_fields(key)")
+      .eq("patient_id", patientId)
+      .returns<{ value: string; field: { key: string } | null }[]>(),
+  ]);
+
+  if (patientError) throw new Error(patientError.message);
+  if (!patient) return null;
+  if (answersError) throw new Error(answersError.message);
+
+  const answers: Record<string, string> = {};
+  for (const row of rows ?? []) {
+    if (row.field) answers[row.field.key] = row.value;
+  }
+
+  return { email: patient.email, answers };
+}
+
+/**
+ * Admin/Doctor: edita la ficha completa de una paciente ya registrada —
+ * correo + cualquier campo activo del catálogo dinámico presente en el
+ * formulario que llame a esta acción (el diálogo rápido "Editar paciente"
+ * solo envía un puñado de campos; la ficha completa los envía todos).
+ */
+export async function updatePatientFicha(
+  _prevState: UpdatePatientState,
+  formData: FormData,
+): Promise<UpdatePatientState> {
+  await requireRole(["Admin", "Doctor"]);
+
+  const patientIdResult = z.uuid({ error: "Paciente inválido." }).safeParse(formData.get("patientId"));
+  if (!patientIdResult.success) {
+    return { error: "Paciente inválido." };
+  }
+  const patientId = patientIdResult.data;
+
+  const supabase = await createClient();
+
+  const emailRaw = formData.get("email");
+  if (typeof emailRaw === "string" && emailRaw.trim()) {
+    const emailResult = EmailSchema.safeParse(emailRaw.trim());
+    if (!emailResult.success) return { error: "Ingresa un correo válido." };
+    const { error: emailError } = await supabase
+      .from("patients")
+      .update({ email: emailResult.data })
+      .eq("id", patientId);
+    if (emailError) return { error: emailError.message };
+  }
+
+  const { data: fields, error: fieldsError } = await supabase
+    .from("form_fields")
+    .select("id, key, field_type, required")
+    .eq("active", true);
+  if (fieldsError) return { error: fieldsError.message };
+
+  const upserts: { patient_id: string; field_id: string; value: string }[] = [];
+  const clearFieldIds: string[] = [];
+
+  for (const field of fields ?? []) {
+    if (!formData.has(field.key)) continue;
+    const raw = formData.get(field.key);
+    const value = typeof raw === "string" ? raw.trim() : "";
+
+    if (field.required && !value) {
+      return { error: `La pregunta "${field.key}" es obligatoria.` };
+    }
+
+    if (value) {
+      upserts.push({ patient_id: patientId, field_id: field.id, value });
+    } else {
+      clearFieldIds.push(field.id);
+    }
+  }
+
+  if (upserts.length > 0) {
+    const { error } = await supabase
+      .from("patient_answers")
+      .upsert(upserts, { onConflict: "patient_id,field_id" });
+    if (error) return { error: error.message };
+  }
+
+  if (clearFieldIds.length > 0) {
+    const { error } = await supabase
+      .from("patient_answers")
+      .delete()
+      .eq("patient_id", patientId)
+      .in("field_id", clearFieldIds);
+    if (error) return { error: error.message };
+  }
+
+  revalidatePath("/expediente");
   return { success: true };
 }
