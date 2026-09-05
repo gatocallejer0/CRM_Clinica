@@ -1,13 +1,28 @@
 import { requireRole } from "@/lib/auth/roles";
-import { ComingSoon } from "@/components/coming-soon";
+import { listProducts, listAllServices, listSales, getPatientOption } from "@/app/actions/catalog";
+import { CobrosView } from "@/components/cobros/cobros-view";
 
-export default async function CobrosPage() {
-  await requireRole(["Admin"]);
+export default async function CobrosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ patient?: string }>;
+}) {
+  const [, { patient: patientId }, products, services, sales] = await Promise.all([
+    requireRole(["Admin", "Recepción"]),
+    searchParams,
+    listProducts(),
+    listAllServices(),
+    listSales(),
+  ]);
+
+  const initialPatient = patientId ? (await getPatientOption(patientId)) ?? undefined : undefined;
 
   return (
-    <ComingSoon
-      title="Cobros y pagos"
-      description="Próximamente: registro de cobros por paciente, método de pago y estado."
+    <CobrosView
+      sales={sales}
+      products={products}
+      services={services}
+      initialPatient={initialPatient}
     />
   );
 }

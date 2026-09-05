@@ -5,9 +5,26 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth/roles";
 import { createClient } from "@/lib/supabase/server";
 import { logAudit, diffSummary } from "@/lib/audit";
-import type { ServiceCategory } from "./appointments";
+import type { ServiceCategory, PatientOption } from "./appointments";
 
 export type CatalogFormState = { error?: string; success?: boolean } | undefined;
+
+const COBROS_ROLES = ["Admin", "Recepción"];
+
+/** Paciente puntual (id, nombre, correo) para precargar el selector de "Nueva venta". */
+export async function getPatientOption(patientId: string): Promise<PatientOption | null> {
+  await requireRole(COBROS_ROLES);
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("patient_summary")
+    .select("id, full_name, email")
+    .eq("id", patientId)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+  return { id: data.id, full_name: data.full_name ?? "Paciente sin nombre", email: data.email };
+}
 
 // ── Servicios ────────────────────────────────────────────────────────────
 // listServices() (solo activos, para el selector de Agenda) ya vive en
@@ -22,9 +39,9 @@ export type ServiceRow = {
   active: boolean;
 };
 
-/** Todos los servicios (activos e inactivos), para administrarlos. Admin-only. */
+/** Todos los servicios (activos e inactivos). Admin (para administrarlos) y Recepción (para venderlos en Cobros). */
 export async function listAllServices(): Promise<ServiceRow[]> {
-  await requireRole(["Admin"]);
+  await requireRole(COBROS_ROLES);
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("services")
@@ -159,9 +176,9 @@ export type ProductRow = {
   active: boolean;
 };
 
-/** Todos los productos (activos e inactivos), para administrarlos. Admin-only. */
+/** Todos los productos (activos e inactivos). Admin (para administrarlos) y Recepción (para venderlos en Cobros). */
 export async function listProducts(): Promise<ProductRow[]> {
-  await requireRole(["Admin"]);
+  await requireRole(COBROS_ROLES);
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("products")
@@ -300,6 +317,8 @@ export type SaleItemRow = {
   subtotal: number;
 };
 
+export type SaleStatus = "borrador" | "pagado" | "pendiente_pago";
+
 export type SaleRow = {
   id: string;
   patient_id: string | null;
@@ -307,13 +326,14 @@ export type SaleRow = {
   sold_by_name: string;
   total: number;
   notes: string | null;
+  status: SaleStatus;
   created_at: string;
   items: SaleItemRow[];
 };
 
-/** Ventas más recientes primero, con sus líneas y el nombre de la paciente (si aplica). Admin-only. */
+/** Ventas más recientes primero, con sus líneas y el nombre de la paciente (si aplica). Admin y Recepción. */
 export async function listSales(): Promise<SaleRow[]> {
-  await requireRole(["Admin"]);
+  await requireRole(COBROS_ROLES);
   const supabase = await createClient();
 
   type Row = {
@@ -322,6 +342,7 @@ export async function listSales(): Promise<SaleRow[]> {
     sold_by_name: string;
     total: number;
     notes: string | null;
+    status: SaleStatus;
     created_at: string;
     sale_items: SaleItemRow[];
   };
@@ -329,7 +350,7 @@ export async function listSales(): Promise<SaleRow[]> {
   const { data, error } = await supabase
     .from("sales")
     .select(
-      "id, patient_id, sold_by_name, total, notes, created_at, sale_items(product_name, quantity, unit_price, subtotal)",
+      "id, patient_id, sold_by_name, total, notes, status, created_at, sale_items(product_name, quantity, unit_price, subtotal)",
     )
     .order("created_at", { ascending: false })
     .returns<Row[]>();
@@ -353,22 +374,31 @@ export async function listSales(): Promise<SaleRow[]> {
     sold_by_name: s.sold_by_name,
     total: s.total,
     notes: s.notes,
+    status: s.status,
     created_at: s.created_at,
     items: s.sale_items,
   }));
 }
 
-const SaleItemSchema = z.object({
-  productId: z.string().uuid(),
-  quantity: z.coerce.number().positive({ error: "La cantidad debe ser mayor a 0." }),
-  unitPrice: z.coerce.number().min(0),
-});
+const SaleItemSchema = z
+  .object({
+    productId: z.string().uuid().optional(),
+    serviceId: z.string().uuid().optional(),
+    quantity: z.coerce
+      .number()
+      .int({ error: "La cantidad debe ser un número entero." })
+      .positive({ error: "La cantidad debe ser mayor a 0." }),
+    unitPrice: z.coerce.number().min(0),
+  })
+  .refine((item) => !!item.productId !== !!item.serviceId, {
+    error: "Cada línea debe ser un producto o un servicio.",
+  });
 
 export async function createSale(
   _prevState: CatalogFormState,
   formData: FormData,
 ): Promise<CatalogFormState> {
-  const profile = await requireRole(["Admin"]);
+  const profile = await requireRole(COBROS_ROLES);
 
   let parsedItems: unknown;
   try {
@@ -377,9 +407,12 @@ export async function createSale(
     return { error: "No se pudieron leer los productos de la venta." };
   }
 
-  const itemsResult = z.array(SaleItemSchema).min(1, { error: "Agrega al menos un producto." }).safeParse(parsedItems);
+  const itemsResult = z
+    .array(SaleItemSchema)
+    .min(1, { error: "Agrega al menos un producto o servicio." })
+    .safeParse(parsedItems);
   if (!itemsResult.success) {
-    return { error: "Agrega al menos un producto con cantidad válida." };
+    return { error: "Agrega al menos un producto o servicio con cantidad válida." };
   }
 
   const patientIdRaw = formData.get("patientId");
@@ -394,7 +427,8 @@ export async function createSale(
     p_sold_by_name: profile.full_name,
     p_notes: notes,
     p_items: itemsResult.data.map((i) => ({
-      product_id: i.productId,
+      product_id: i.productId ?? null,
+      service_id: i.serviceId ?? null,
       quantity: i.quantity,
       unit_price: i.unitPrice,
     })),
@@ -408,5 +442,91 @@ export async function createSale(
   }
 
   revalidatePath("/admin/catalogo");
+  revalidatePath("/cobros");
   return { success: true };
+}
+
+const UpdateSaleStatusSchema = z.object({
+  saleId: z.string().uuid(),
+  status: z.enum(["borrador", "pagado", "pendiente_pago"]),
+});
+
+export async function updateSaleStatus(
+  _prevState: CatalogFormState,
+  formData: FormData,
+): Promise<CatalogFormState> {
+  await requireRole(COBROS_ROLES);
+
+  const parsed = UpdateSaleStatusSchema.safeParse({
+    saleId: formData.get("saleId"),
+    status: formData.get("status"),
+  });
+  if (!parsed.success) {
+    return { error: "Estado inválido." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("update_sale_status", {
+    p_sale_id: parsed.data.saleId,
+    p_status: parsed.data.status,
+  });
+  if (error) return { error: error.message };
+
+  revalidatePath("/cobros");
+  return { success: true };
+}
+
+export type SaleReceiptData = {
+  id: string;
+  createdAt: string;
+  patientName: string | null;
+  soldByName: string;
+  notes: string | null;
+  total: number;
+  items: SaleItemRow[];
+};
+
+/** Datos de una venta para el recibo imprimible (/recibo/[saleId]). Admin y Recepción. */
+export async function getSaleForPrint(saleId: string): Promise<SaleReceiptData | null> {
+  await requireRole(COBROS_ROLES);
+  const supabase = await createClient();
+
+  const { data: sale, error } = await supabase
+    .from("sales")
+    .select(
+      "id, patient_id, sold_by_name, total, notes, created_at, sale_items(product_name, quantity, unit_price, subtotal)",
+    )
+    .eq("id", saleId)
+    .maybeSingle<{
+      id: string;
+      patient_id: string | null;
+      sold_by_name: string;
+      total: number;
+      notes: string | null;
+      created_at: string;
+      sale_items: SaleItemRow[];
+    }>();
+
+  if (error) throw new Error(error.message);
+  if (!sale) return null;
+
+  let patientName: string | null = null;
+  if (sale.patient_id) {
+    const { data: patient } = await supabase
+      .from("patient_summary")
+      .select("full_name")
+      .eq("id", sale.patient_id)
+      .maybeSingle();
+    patientName = patient?.full_name ?? "Paciente sin nombre";
+  }
+
+  return {
+    id: sale.id,
+    createdAt: sale.created_at,
+    patientName,
+    soldByName: sale.sold_by_name,
+    notes: sale.notes,
+    total: sale.total,
+    items: sale.sale_items,
+  };
 }
