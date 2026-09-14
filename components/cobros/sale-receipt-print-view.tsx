@@ -5,6 +5,7 @@ import { PrinterIcon } from "lucide-react";
 import type { SaleReceiptData } from "@/app/actions/catalog";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/format";
+import { normalizeSpaces } from "@/lib/clinic-time";
 
 const DATE_FORMAT = new Intl.DateTimeFormat("es-GT", { dateStyle: "medium", timeStyle: "short" });
 
@@ -21,15 +22,15 @@ export function SaleReceiptPrintView({ data }: { data: SaleReceiptData }) {
           <div
             className="size-11 shrink-0 rounded-xl bg-white"
             style={{
-              backgroundImage: "url(/logo.png)",
-              backgroundSize: "80px 44px",
-              backgroundPosition: "0 0",
+              backgroundImage: "url(/logo-icon.png)",
+              backgroundSize: "contain",
+              backgroundPosition: "center",
               backgroundRepeat: "no-repeat",
             }}
           />
           <div>
             <p className="font-heading text-base font-bold">Recibo de pago</p>
-            <p className="text-xs text-neutral-500">{DATE_FORMAT.format(new Date(data.createdAt))}</p>
+            <p className="text-xs text-neutral-500">{normalizeSpaces(DATE_FORMAT.format(new Date(data.createdAt)))}</p>
           </div>
         </div>
         <Button type="button" variant="outline" className="print:hidden" onClick={() => window.print()}>

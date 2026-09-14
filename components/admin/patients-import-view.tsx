@@ -212,9 +212,8 @@ export function PatientsImportView({ fields }: { fields: FormField[] }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <BackToAdminLink />
-
-      <div className="flex justify-end">
+      <div className="flex items-center justify-between gap-3">
+        <BackToAdminLink />
         <a href="/admin/pacientes/plantilla" className={buttonVariants({ variant: "outline" })}>
           <DownloadIcon />
           Descargar plantilla

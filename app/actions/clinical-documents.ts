@@ -1,11 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireRole } from "@/lib/auth/roles";
+import { requireScreen } from "@/lib/auth/roles";
 import { createClient } from "@/lib/supabase/server";
 import { ALLOWED_DOCUMENT_MIME_TYPES, MAX_DOCUMENT_SIZE_BYTES } from "@/lib/clinical-document-limits";
 
-const CLINICAL_ROLES = ["Admin", "Doctor"];
 const BUCKET = "clinical-documents";
 
 export type ClinicalDocument = {
@@ -38,7 +37,7 @@ type DocumentRow = {
  * sesión; se regenera cada vez que se vuelve a cargar el expediente.
  */
 export async function listPatientDocuments(patientId: string): Promise<ClinicalDocument[]> {
-  await requireRole(CLINICAL_ROLES);
+  await requireScreen("pacientes");
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -80,7 +79,7 @@ export async function uploadClinicalDocument(
   _prevState: UploadDocumentState,
   formData: FormData,
 ): Promise<UploadDocumentState> {
-  const profile = await requireRole(CLINICAL_ROLES);
+  const profile = await requireScreen("pacientes");
 
   const patientId = formData.get("patientId");
   const file = formData.get("file");
@@ -133,7 +132,7 @@ export async function uploadClinicalDocument(
 }
 
 export async function deleteClinicalDocument(documentId: string): Promise<{ error?: string }> {
-  await requireRole(CLINICAL_ROLES);
+  await requireScreen("pacientes");
   const supabase = await createClient();
 
   const { data: doc, error: fetchError } = await supabase

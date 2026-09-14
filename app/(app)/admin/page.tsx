@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { requireRole } from "@/lib/auth/roles";
-import { ADMIN_SECTIONS } from "@/components/app-shell/nav-config";
+import { requireScreen, getAllowedScreens } from "@/lib/auth/roles";
+import { ADMIN_SECTIONS, isNavItemVisible } from "@/components/app-shell/nav-config";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
 export default async function AdminCenterPage() {
-  const profile = await requireRole(["Admin", "Doctor"]);
-  const sections = ADMIN_SECTIONS.filter((section) => section.roles.includes(profile.role.name));
+  const profile = await requireScreen("admin");
+  const allowedScreens = await getAllowedScreens(profile);
+  const sections = ADMIN_SECTIONS.filter((section) => isNavItemVisible(section, profile.role.name, allowedScreens));
 
   return (
     <div className="flex flex-col gap-6">
@@ -18,7 +19,7 @@ export default async function AdminCenterPage() {
           const Icon = section.icon;
           return (
             <Link key={section.href} href={section.href} className="block">
-              <Card className="h-full transition-[transform,box-shadow] duration-150 hover:-translate-y-0.5 hover:shadow-[var(--shadow-glass-lg)]">
+              <Card className="h-full transition-[transform,box-shadow] duration-150 hover:-translate-y-0.5 hover:shadow-[var(--shadow-glass-lg)] active:translate-y-0 active:scale-[0.98] active:shadow-none">
                 <CardHeader>
                   <div className="mb-2 flex size-10 items-center justify-center rounded-xl bg-primary/10">
                     <Icon className="size-5 text-primary" strokeWidth={1.75} />

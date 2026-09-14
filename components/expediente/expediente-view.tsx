@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -80,6 +80,14 @@ export function ExpedienteView({
   const [editOpen, setEditOpen] = useState(false);
   const [newPatientOpen, setNewPatientOpen] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
+  // Bloquea los 3 botones de acción del popup tras el primer clic — sin esto
+  // se podían presionar varias veces antes de que la navegación completara.
+  const [navigating, setNavigating] = useState(false);
+  // Se incrementa en cada apertura de paciente para poder descartar la
+  // respuesta de un getPatientDetail() que llegue tarde (ej. si la usuaria
+  // cierra el popup y abre otra paciente antes de que la primera consulta
+  // resuelva) sin pisar el detalle correcto con uno viejo.
+  const detailRequestIdRef = useRef(0);
 
   const q = query.trim().toLowerCase();
   const filtered = q
@@ -97,42 +105,60 @@ export function ExpedienteView({
   }
 
   async function selectPatient(id: string) {
+    const requestId = ++detailRequestIdRef.current;
     setSelectedId(id);
     setDetail(null);
-    router.replace(`/expediente?patient=${id}`, { scroll: false });
+    setNavigating(false);
+    // Actualiza la URL directo con la History API en vez de router.replace():
+    // router.replace() en un segment con searchParams dinámicos vuelve a
+    // correr el Server Component entero (re-consulta TODAS las pacientes y
+    // sus expedientes) solo para abrir un popup de solo lectura — eso era la
+    // causa real de la lentitud al hacer clic en una paciente. El detalle que
+    // se muestra ya viene del getPatientDetail() de abajo; la URL solo es
+    // para que el enlace sea compartible/recargable.
+    window.history.replaceState(null, "", `/expediente?patient=${id}`);
     const data = await getPatientDetail(id);
+    if (requestId !== detailRequestIdRef.current) return;
     setDetail(data);
   }
 
   function closeDetail() {
+    detailRequestIdRef.current++;
     setSelectedId(null);
     setDetail(null);
-    router.replace("/expediente", { scroll: false });
+    setNavigating(false);
+    window.history.replaceState(null, "", "/expediente");
+  }
+
+  function handleActionClick(e: React.MouseEvent<HTMLAnchorElement>) {
+    if (navigating) {
+      e.preventDefault();
+      return;
+    }
+    setNavigating(true);
   }
 
   return (
     <>
       <div className="flex flex-col gap-5">
-        <Card className="flex-row items-center gap-4 px-5 py-4">
-          <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <UsersIcon className="size-6" />
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Total Pacientes</p>
-            <p className="font-heading text-2xl font-bold text-foreground">{patients.length}</p>
-          </div>
-        </Card>
-
         <Card className="gap-0 p-0">
           <div className="flex flex-wrap items-center justify-between gap-3 p-4">
-            <div className="relative w-full max-w-sm">
-              <SearchIcon className="absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Buscar por nombre, NIT o teléfono..."
-                className="rounded-full pl-10"
-              />
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="relative w-full sm:w-72">
+                <SearchIcon className="absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Buscar por nombre, NIT o teléfono..."
+                  className="rounded-full pl-10"
+                />
+              </div>
+              <p className="flex items-center gap-1.5 text-sm whitespace-nowrap text-muted-foreground">
+                <UsersIcon className="size-4" />
+                {q
+                  ? `${filtered.length} de ${patients.length} pacientes`
+                  : `${patients.length} paciente${patients.length === 1 ? "" : "s"}`}
+              </p>
             </div>
             <div className="flex items-center gap-2">
               <Button
@@ -316,23 +342,53 @@ export function ExpedienteView({
               >
                 <Link
                   href={`/expediente/${detail.id}`}
+                  onClick={handleActionClick}
+                  aria-disabled={navigating}
+                  tabIndex={navigating ? -1 : undefined}
                   className={buttonVariants()}
-                  style={{ flex: 1, justifyContent: "center", borderRadius: "9999px", padding: "10px 16px", height: "auto" }}
+                  style={{
+                    flex: 1,
+                    justifyContent: "center",
+                    borderRadius: "9999px",
+                    padding: "10px 16px",
+                    height: "auto",
+                    ...(navigating ? { pointerEvents: "none", opacity: 0.6 } : {}),
+                  }}
                 >
                   Expediente Clínico
                 </Link>
                 <Link
                   href={`/expediente/ficha/${detail.id}`}
+                  onClick={handleActionClick}
+                  aria-disabled={navigating}
+                  tabIndex={navigating ? -1 : undefined}
                   className={buttonVariants({ variant: "secondary" })}
-                  style={{ flex: 1, justifyContent: "center", borderRadius: "9999px", padding: "10px 16px", height: "auto" }}
+                  style={{
+                    flex: 1,
+                    justifyContent: "center",
+                    borderRadius: "9999px",
+                    padding: "10px 16px",
+                    height: "auto",
+                    ...(navigating ? { pointerEvents: "none", opacity: 0.6 } : {}),
+                  }}
                 >
                   Ficha de paciente
                 </Link>
                 {canAccessCobros && (
                   <Link
                     href={`/cobros?patient=${detail.id}`}
+                    onClick={handleActionClick}
+                    aria-disabled={navigating}
+                    tabIndex={navigating ? -1 : undefined}
                     className={buttonVariants({ variant: "outline" })}
-                    style={{ flex: 1, justifyContent: "center", borderRadius: "9999px", padding: "10px 16px", height: "auto" }}
+                    style={{
+                      flex: 1,
+                      justifyContent: "center",
+                      borderRadius: "9999px",
+                      padding: "10px 16px",
+                      height: "auto",
+                      ...(navigating ? { pointerEvents: "none", opacity: 0.6 } : {}),
+                    }}
                   >
                     Cobros y Pagos
                   </Link>

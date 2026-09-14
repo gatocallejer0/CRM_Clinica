@@ -3,13 +3,16 @@
 import { useState } from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { normalizeSpaces } from "@/lib/clinic-time";
 
 function formatExpiry(expiresAt: string): string {
-  return new Intl.DateTimeFormat("es-GT", {
-    timeZone: "America/Guatemala",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(expiresAt));
+  return normalizeSpaces(
+    new Intl.DateTimeFormat("es-GT", {
+      timeZone: "America/Guatemala",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(new Date(expiresAt)),
+  );
 }
 
 /** Muestra una contraseña temporal generada por el sistema con botón de copiar. */

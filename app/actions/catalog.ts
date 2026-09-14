@@ -2,18 +2,16 @@
 
 import * as z from "zod";
 import { revalidatePath } from "next/cache";
-import { requireRole } from "@/lib/auth/roles";
+import { requireScreen } from "@/lib/auth/roles";
 import { createClient } from "@/lib/supabase/server";
 import { logAudit, diffSummary } from "@/lib/audit";
 import type { ServiceCategory, PatientOption } from "./appointments";
 
 export type CatalogFormState = { error?: string; success?: boolean } | undefined;
 
-const COBROS_ROLES = ["Admin", "Recepción"];
-
 /** Paciente puntual (id, nombre, correo) para precargar el selector de "Nueva venta". */
 export async function getPatientOption(patientId: string): Promise<PatientOption | null> {
-  await requireRole(COBROS_ROLES);
+  await requireScreen("cobros");
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("patient_summary")
@@ -39,9 +37,14 @@ export type ServiceRow = {
   active: boolean;
 };
 
-/** Todos los servicios (activos e inactivos). Admin (para administrarlos) y Recepción (para venderlos en Cobros). */
+/**
+ * Todos los servicios (activos e inactivos) — los usan Catálogo (para
+ * administrarlos) y Cobros (para venderlos). Sin requireScreen a propósito:
+ * RLS (services: active staff can select) ya filtra por pantalla
+ * (agenda/admin.catalogo/cobros), igual que listServices() en
+ * appointments.ts.
+ */
 export async function listAllServices(): Promise<ServiceRow[]> {
-  await requireRole(COBROS_ROLES);
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("services")
@@ -87,7 +90,7 @@ export async function createService(
   _prevState: CatalogFormState,
   formData: FormData,
 ): Promise<CatalogFormState> {
-  const profile = await requireRole(["Admin"]);
+  const profile = await requireScreen("admin.catalogo");
 
   const fields = readServiceFields(formData);
   if ("error" in fields) return { error: fields.error };
@@ -118,7 +121,7 @@ export async function updateService(
   _prevState: CatalogFormState,
   formData: FormData,
 ): Promise<CatalogFormState> {
-  const profile = await requireRole(["Admin"]);
+  const profile = await requireScreen("admin.catalogo");
 
   const id = formData.get("id");
   if (typeof id !== "string" || !id) return { error: "Servicio inválido." };
@@ -176,9 +179,12 @@ export type ProductRow = {
   active: boolean;
 };
 
-/** Todos los productos (activos e inactivos). Admin (para administrarlos) y Recepción (para venderlos en Cobros). */
+/**
+ * Todos los productos (activos e inactivos) — los usan Catálogo (para
+ * administrarlos) y Cobros (para venderlos). Sin requireScreen a propósito,
+ * mismo criterio que listAllServices(): RLS ya filtra por pantalla.
+ */
 export async function listProducts(): Promise<ProductRow[]> {
-  await requireRole(COBROS_ROLES);
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("products")
@@ -232,7 +238,7 @@ export async function createProduct(
   _prevState: CatalogFormState,
   formData: FormData,
 ): Promise<CatalogFormState> {
-  const profile = await requireRole(["Admin"]);
+  const profile = await requireScreen("admin.catalogo");
 
   const fields = readProductFields(formData);
   if ("error" in fields) return { error: fields.error };
@@ -262,7 +268,7 @@ export async function updateProduct(
   _prevState: CatalogFormState,
   formData: FormData,
 ): Promise<CatalogFormState> {
-  const profile = await requireRole(["Admin"]);
+  const profile = await requireScreen("admin.catalogo");
 
   const id = formData.get("id");
   if (typeof id !== "string" || !id) return { error: "Producto inválido." };
@@ -310,14 +316,18 @@ export async function updateProduct(
 
 // ── Ventas ───────────────────────────────────────────────────────────────
 
+export type SaleItemKind = "product" | "service";
+
 export type SaleItemRow = {
   product_name: string;
   quantity: number;
   unit_price: number;
   subtotal: number;
+  kind: SaleItemKind;
 };
 
 export type SaleStatus = "borrador" | "pagado" | "pendiente_pago";
+export type PaymentMethod = "efectivo" | "tarjeta" | "transferencia";
 
 export type SaleRow = {
   id: string;
@@ -327,14 +337,24 @@ export type SaleRow = {
   total: number;
   notes: string | null;
   status: SaleStatus;
+  payment_method: PaymentMethod | null;
   created_at: string;
   items: SaleItemRow[];
 };
 
-/** Ventas más recientes primero, con sus líneas y el nombre de la paciente (si aplica). Admin y Recepción. */
+/** Ventas más recientes primero, con sus líneas y el nombre de la paciente (si aplica). Pantalla: cobros. */
 export async function listSales(): Promise<SaleRow[]> {
-  await requireRole(COBROS_ROLES);
+  await requireScreen("cobros");
   const supabase = await createClient();
+
+  type ItemRow = {
+    product_id: string | null;
+    service_id: string | null;
+    product_name: string;
+    quantity: number;
+    unit_price: number;
+    subtotal: number;
+  };
 
   type Row = {
     id: string;
@@ -343,14 +363,15 @@ export async function listSales(): Promise<SaleRow[]> {
     total: number;
     notes: string | null;
     status: SaleStatus;
+    payment_method: PaymentMethod | null;
     created_at: string;
-    sale_items: SaleItemRow[];
+    sale_items: ItemRow[];
   };
 
   const { data, error } = await supabase
     .from("sales")
     .select(
-      "id, patient_id, sold_by_name, total, notes, status, created_at, sale_items(product_name, quantity, unit_price, subtotal)",
+      "id, patient_id, sold_by_name, total, notes, status, payment_method, created_at, sale_items(product_id, service_id, product_name, quantity, unit_price, subtotal)",
     )
     .order("created_at", { ascending: false })
     .returns<Row[]>();
@@ -375,10 +396,19 @@ export async function listSales(): Promise<SaleRow[]> {
     total: s.total,
     notes: s.notes,
     status: s.status,
+    payment_method: s.payment_method,
     created_at: s.created_at,
-    items: s.sale_items,
+    items: s.sale_items.map((i) => ({
+      product_name: i.product_name,
+      quantity: i.quantity,
+      unit_price: i.unit_price,
+      subtotal: i.subtotal,
+      kind: i.service_id ? ("service" as const) : ("product" as const),
+    })),
   }));
 }
+
+const PaymentMethodSchema = z.enum(["efectivo", "tarjeta", "transferencia"]);
 
 const SaleItemSchema = z
   .object({
@@ -398,7 +428,7 @@ export async function createSale(
   _prevState: CatalogFormState,
   formData: FormData,
 ): Promise<CatalogFormState> {
-  const profile = await requireRole(COBROS_ROLES);
+  const profile = await requireScreen("cobros");
 
   let parsedItems: unknown;
   try {
@@ -420,6 +450,11 @@ export async function createSale(
   const notesRaw = formData.get("notes");
   const notes = typeof notesRaw === "string" && notesRaw.trim() ? notesRaw.trim() : null;
 
+  const paymentMethodResult = PaymentMethodSchema.safeParse(formData.get("paymentMethod"));
+  if (!paymentMethodResult.success) {
+    return { error: "Selecciona el método de pago." };
+  }
+
   const supabase = await createClient();
   const { error } = await supabase.rpc("create_sale", {
     p_patient_id: patientId,
@@ -432,6 +467,7 @@ export async function createSale(
       quantity: i.quantity,
       unit_price: i.unitPrice,
     })),
+    p_payment_method: paymentMethodResult.data,
   });
 
   if (error) {
@@ -446,35 +482,110 @@ export async function createSale(
   return { success: true };
 }
 
-const UpdateSaleStatusSchema = z.object({
-  saleId: z.string().uuid(),
-  status: z.enum(["borrador", "pagado", "pendiente_pago"]),
-});
+/**
+ * Crea el cobro del servicio de una cita al marcarla "atendida" — para que
+ * Recepción no tenga que darlo de alta a mano. Se llama desde
+ * appointments.ts tanto en el marcado manual (queda "pendiente_pago", se
+ * cobra después en Cobros) como en el automático por horario vencido (queda
+ * "pagado" directo, con "efectivo" como método por defecto — nadie está ahí
+ * para elegirlo en ese momento; el personal lo corrige después si en
+ * realidad se pagó de otra forma). Nunca lanza: es un efecto secundario
+ * best-effort, igual que la sincronización con Google Calendar — que esto
+ * falle no debe impedir que la cita se marque atendida.
+ *
+ * Idempotente por `appointment_id` (índice único en sales): si esta cita ya
+ * generó un cobro, Postgres devuelve un choque de unicidad que se ignora en
+ * silencio en vez de crear uno duplicado.
+ */
+export async function createSaleFromAttendedAppointment({
+  appointmentId,
+  patientId,
+  serviceId,
+  price,
+  soldBy,
+  soldByName,
+  status = "pendiente_pago",
+  paymentMethod,
+}: {
+  appointmentId: string;
+  patientId: string;
+  serviceId: string;
+  price: number;
+  soldBy: string | null;
+  soldByName: string;
+  status?: SaleStatus;
+  paymentMethod?: PaymentMethod;
+}): Promise<void> {
+  const supabase = await createClient();
+
+  const { error } = await supabase.rpc("create_sale", {
+    p_patient_id: patientId,
+    p_sold_by: soldBy,
+    p_sold_by_name: soldByName,
+    p_notes: "Generado automáticamente al marcar la cita como atendida.",
+    p_items: [{ product_id: null, service_id: serviceId, quantity: 1, unit_price: price }],
+    p_appointment_id: appointmentId,
+    p_status: status,
+    p_payment_method: paymentMethod ?? null,
+  });
+
+  if (error && error.code !== "23505") {
+    // 23505 = unique_violation (ya existe un cobro para esta cita) — no es un error real.
+    console.error("[createSaleFromAttendedAppointment] Error:", error.message);
+  }
+
+  if (!error) {
+    revalidatePath("/cobros");
+  }
+}
+
+const UpdateSaleStatusSchema = z
+  .object({
+    saleId: z.string().uuid(),
+    status: z.enum(["borrador", "pagado", "pendiente_pago"]),
+    paymentMethod: PaymentMethodSchema.optional(),
+  })
+  // El método de pago solo es obligatorio al dejar la venta como "pagado" —
+  // para "borrador"/"pendiente_pago" no hay nada que registrar todavía.
+  .refine((data) => data.status !== "pagado" || !!data.paymentMethod, {
+    error: "Selecciona el método de pago.",
+    path: ["paymentMethod"],
+  });
 
 export async function updateSaleStatus(
   _prevState: CatalogFormState,
   formData: FormData,
 ): Promise<CatalogFormState> {
-  await requireRole(COBROS_ROLES);
+  await requireScreen("cobros");
 
+  const paymentMethodRaw = formData.get("paymentMethod");
   const parsed = UpdateSaleStatusSchema.safeParse({
     saleId: formData.get("saleId"),
     status: formData.get("status"),
+    paymentMethod: paymentMethodRaw || undefined,
   });
   if (!parsed.success) {
-    return { error: "Estado inválido." };
+    return { error: parsed.error.issues[0]?.message ?? "Estado inválido." };
   }
 
   const supabase = await createClient();
   const { error } = await supabase.rpc("update_sale_status", {
     p_sale_id: parsed.data.saleId,
     p_status: parsed.data.status,
+    p_payment_method: parsed.data.paymentMethod ?? null,
   });
   if (error) return { error: error.message };
 
   revalidatePath("/cobros");
   return { success: true };
 }
+
+type PrintItemRow = {
+  product_name: string;
+  quantity: number;
+  unit_price: number;
+  subtotal: number;
+};
 
 export type SaleReceiptData = {
   id: string;
@@ -483,12 +594,12 @@ export type SaleReceiptData = {
   soldByName: string;
   notes: string | null;
   total: number;
-  items: SaleItemRow[];
+  items: PrintItemRow[];
 };
 
-/** Datos de una venta para el recibo imprimible (/recibo/[saleId]). Admin y Recepción. */
+/** Datos de una venta para el recibo imprimible (/recibo/[saleId]). Pantalla: cobros. */
 export async function getSaleForPrint(saleId: string): Promise<SaleReceiptData | null> {
-  await requireRole(COBROS_ROLES);
+  await requireScreen("cobros");
   const supabase = await createClient();
 
   const { data: sale, error } = await supabase
@@ -504,7 +615,7 @@ export async function getSaleForPrint(saleId: string): Promise<SaleReceiptData |
       total: number;
       notes: string | null;
       created_at: string;
-      sale_items: SaleItemRow[];
+      sale_items: PrintItemRow[];
     }>();
 
   if (error) throw new Error(error.message);

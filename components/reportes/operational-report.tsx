@@ -7,7 +7,7 @@ import { getOperationalReport, type OperationalReport } from "@/app/actions/repo
 import type { ServiceRow } from "@/app/actions/catalog";
 import type { AppointmentStatus } from "@/app/actions/appointments";
 import { STATUS_LABELS, STATUS_STYLE } from "@/components/agenda/appointment-meta";
-import { toClinicDateKey } from "@/lib/clinic-time";
+import { toClinicDateKey, normalizeSpaces } from "@/lib/clinic-time";
 import { exportRowsToCsv } from "@/lib/export-csv";
 import { DateRangeFilter } from "./date-range-filter";
 import { Card } from "@/components/ui/card";
@@ -106,7 +106,7 @@ export function OperationalReportView({
     exportRowsToCsv(
       "reporte-operativo",
       visibleRows.map((r) => ({
-        Fecha: DATE_TIME_FORMAT.format(new Date(r.scheduledAt)),
+        Fecha: normalizeSpaces(DATE_TIME_FORMAT.format(new Date(r.scheduledAt))),
         Paciente: r.patientName,
         Correo: r.patientEmail,
         Tipo: r.isNewPatient ? "Nueva" : "Ya registrada",
@@ -211,7 +211,7 @@ export function OperationalReportView({
               visibleRows.map((r) => (
                 <TableRow key={r.id}>
                   <TableCell className="pl-5 whitespace-nowrap">
-                    {DATE_TIME_FORMAT.format(new Date(r.scheduledAt))}
+                    {normalizeSpaces(DATE_TIME_FORMAT.format(new Date(r.scheduledAt)))}
                   </TableCell>
                   <TableCell>{r.patientName}</TableCell>
                   <TableCell className="text-muted-foreground">{r.patientEmail || "—"}</TableCell>

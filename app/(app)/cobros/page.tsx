@@ -1,4 +1,4 @@
-import { requireRole } from "@/lib/auth/roles";
+import { requireScreen } from "@/lib/auth/roles";
 import { listProducts, listAllServices, listSales, getPatientOption } from "@/app/actions/catalog";
 import { CobrosView } from "@/components/cobros/cobros-view";
 
@@ -8,7 +8,7 @@ export default async function CobrosPage({
   searchParams: Promise<{ patient?: string }>;
 }) {
   const [, { patient: patientId }, products, services, sales] = await Promise.all([
-    requireRole(["Admin", "Recepción"]),
+    requireScreen("cobros"),
     searchParams,
     listProducts(),
     listAllServices(),

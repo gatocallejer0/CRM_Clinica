@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { requireRole } from "@/lib/auth/roles";
+import { requireActiveSession, getAllowedScreens } from "@/lib/auth/roles";
 import { AppShell } from "@/components/app-shell/app-shell";
 
 export default async function AppLayout({
@@ -7,7 +7,11 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const profile = await requireRole(["Admin", "Doctor", "Recepción"]);
+  // requireActiveSession (no requireRole con lista fija): con roles
+  // extensibles (Admin Center > Roles y permisos) ya no tiene sentido una
+  // lista de 3 nombres acá — cada página de adentro valida su propia
+  // pantalla con requireScreen.
+  const profile = await requireActiveSession();
 
   // Contraseña temporal (recién creada o reemitida) pendiente de cambiar:
   // bloquea el resto de la app hasta que la actualice. /cambiar-password
@@ -16,5 +20,11 @@ export default async function AppLayout({
     redirect("/cambiar-password");
   }
 
-  return <AppShell profile={profile}>{children}</AppShell>;
+  const allowedScreens = [...(await getAllowedScreens(profile))];
+
+  return (
+    <AppShell profile={profile} allowedScreens={allowedScreens}>
+      {children}
+    </AppShell>
+  );
 }

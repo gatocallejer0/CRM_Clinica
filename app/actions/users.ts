@@ -2,7 +2,7 @@
 
 import * as z from "zod";
 import { revalidatePath } from "next/cache";
-import { requireRole } from "@/lib/auth/roles";
+import { requireScreen } from "@/lib/auth/roles";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { logAudit } from "@/lib/audit";
 import { generateTempPassword, TEMP_PASSWORD_TTL_MS } from "@/lib/password";
@@ -30,7 +30,7 @@ export type UserRow = {
 
 /** All roles available, for populating the "role" select. Admin-only. */
 export async function listRoles(): Promise<Role[]> {
-  await requireRole(["Admin"]);
+  await requireScreen("admin.usuarios");
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("roles")
@@ -43,7 +43,7 @@ export async function listRoles(): Promise<Role[]> {
 
 /** All users with their profile + role + email. Admin-only. */
 export async function listUsers(): Promise<UserRow[]> {
-  await requireRole(["Admin"]);
+  await requireScreen("admin.usuarios");
   const admin = createAdminClient();
 
   type ProfileRow = {
@@ -94,13 +94,13 @@ export type UserFormState =
 /**
  * Creates a new auth user + profile row, assigning the given role.
  * Admin-only. Uses the service_role key (createAdminClient) which bypasses
- * RLS, so the caller's role MUST be verified first via requireRole.
+ * RLS, so the caller's role MUST be verified first via requireScreen.
  */
 export async function createUser(
   _prevState: UserFormState,
   formData: FormData,
 ): Promise<UserFormState> {
-  const profile = await requireRole(["Admin"]);
+  const profile = await requireScreen("admin.usuarios");
 
   const validatedFields = CreateUserSchema.safeParse({
     fullName: formData.get("fullName"),
@@ -177,7 +177,7 @@ export async function resetUserPassword(
   _prevState: ResetPasswordState,
   formData: FormData,
 ): Promise<ResetPasswordState> {
-  const profile = await requireRole(["Admin"]);
+  const profile = await requireScreen("admin.usuarios");
 
   const validatedFields = ResetPasswordSchema.safeParse({ id: formData.get("id") });
   if (!validatedFields.success) {
@@ -227,13 +227,13 @@ const UpdateUserSchema = z.object({
 /**
  * Updates a profile's name/role/active flag and the auth user's email.
  * Admin-only. Uses the service_role key, so the caller's role MUST be
- * verified first via requireRole.
+ * verified first via requireScreen.
  */
 export async function updateUser(
   _prevState: UserFormState,
   formData: FormData,
 ): Promise<UserFormState> {
-  const profile = await requireRole(["Admin"]);
+  const profile = await requireScreen("admin.usuarios");
 
   const validatedFields = UpdateUserSchema.safeParse({
     id: formData.get("id"),

@@ -1,26 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { ComingSoon } from "@/components/coming-soon";
 import type { ServiceRow } from "@/app/actions/catalog";
 import type {
   OperationalReport,
   PatientsSummaryReport,
   AtRiskPatientRow,
   PatientsDataReport,
-  AuditReportEntry,
 } from "@/app/actions/reports";
 import { OperationalReportView } from "./operational-report";
 import { PatientsReportView } from "./patients-report";
-import { AuditReportView } from "./audit-report";
 
-type Tab = "financiero" | "operativo" | "pacientes" | "auditoria";
+type Tab = "operativo" | "pacientes";
 
 const TABS: { value: Tab; label: string }[] = [
-  { value: "financiero", label: "Financiero" },
   { value: "operativo", label: "Operativo" },
   { value: "pacientes", label: "Pacientes" },
-  { value: "auditoria", label: "Auditoría" },
 ];
 
 export function ReportesView({
@@ -29,21 +24,17 @@ export function ReportesView({
   initialPatientsSummary,
   initialAtRiskPatients,
   initialPatientsData,
-  initialAuditEntries,
 }: {
   services: ServiceRow[];
   initialOperational: OperationalReport;
   initialPatientsSummary: PatientsSummaryReport;
   initialAtRiskPatients: AtRiskPatientRow[];
   initialPatientsData: PatientsDataReport;
-  initialAuditEntries: AuditReportEntry[];
 }) {
-  const [tab, setTab] = useState<Tab>("financiero");
+  const [tab, setTab] = useState<Tab>("operativo");
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-muted-foreground">Reportes de operación, pacientes y auditoría de la clínica.</p>
-
       <div className="flex w-fit flex-wrap items-center gap-1.5 rounded-2xl border border-white/70 bg-white/50 p-1">
         {TABS.map((t) => (
           <button
@@ -59,12 +50,6 @@ export function ReportesView({
         ))}
       </div>
 
-      {tab === "financiero" && (
-        <ComingSoon
-          title="Reporte financiero"
-          description="Próximamente: tabla mensual (Citas, Ingresos, Gastos, Utilidad neta) y detalle de gastos — depende del módulo Cobros y pagos, que todavía no existe."
-        />
-      )}
       {tab === "operativo" && <OperationalReportView services={services} initialReport={initialOperational} />}
       {tab === "pacientes" && (
         <PatientsReportView
@@ -73,7 +58,6 @@ export function ReportesView({
           initialAtRisk={initialAtRiskPatients}
         />
       )}
-      {tab === "auditoria" && <AuditReportView initialEntries={initialAuditEntries} />}
     </div>
   );
 }

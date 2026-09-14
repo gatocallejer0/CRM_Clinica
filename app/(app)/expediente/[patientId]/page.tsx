@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeftIcon } from "lucide-react";
-import { requireRole } from "@/lib/auth/roles";
+import { requireScreen } from "@/lib/auth/roles";
 import { getPatientDetail } from "@/app/actions/clinical-records";
 import { PatientDetailPane } from "@/components/expediente/patient-detail";
 
@@ -12,7 +12,7 @@ export default async function PatientExpedientePage({
 }) {
   const { patientId } = await params;
   const [, patient] = await Promise.all([
-    requireRole(["Admin", "Doctor"]),
+    requireScreen("pacientes"),
     getPatientDetail(patientId),
   ]);
 

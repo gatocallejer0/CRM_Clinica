@@ -1,7 +1,7 @@
 "use server";
 
-import { requireRole } from "@/lib/auth/roles";
-import { createClient } from "@/lib/supabase/server";
+import { requireScreen } from "@/lib/auth/roles";
+import { createAdminClient } from "@/lib/supabase/server";
 import {
   toClinicDateKey,
   formatClinicMonthLabel,
@@ -40,8 +40,12 @@ export type OperationalFilters = {
 };
 
 export async function getOperationalReport(filters: OperationalFilters): Promise<OperationalReport> {
-  await requireRole(["Admin"]);
-  const supabase = await createClient();
+  await requireScreen("reportes");
+  // Cliente admin: este reporte cruza citas/pacientes más allá de lo que la
+  // sesión del usuario podría leer por RLS (esas policies están pensadas
+  // para Agenda/Expediente, no para Reportes) — el gate real es
+  // requireScreen de arriba.
+  const supabase = createAdminClient();
 
   const from = filters.fromKey ? combineClinicDateTime(filters.fromKey, "00:00") : null;
   const to = filters.toKey ? addDays(combineClinicDateTime(filters.toKey, "00:00"), 1) : null;
@@ -155,8 +159,8 @@ export type PatientsSummaryReport = {
  * primera cita, aunque la tabla que se muestra sí respete el rango.
  */
 export async function getPatientsSummaryReport(filters: DateFilters): Promise<PatientsSummaryReport> {
-  await requireRole(["Admin"]);
-  const supabase = await createClient();
+  await requireScreen("reportes");
+  const supabase = createAdminClient();
 
   const from = filters.fromKey ? combineClinicDateTime(filters.fromKey, "00:00") : null;
   const to = filters.toKey ? addDays(combineClinicDateTime(filters.toKey, "00:00"), 1) : null;
@@ -225,8 +229,8 @@ export type AtRiskPatientRow = {
 const ABANDONMENT_THRESHOLD_DAYS = 90;
 
 export async function getAtRiskPatients(): Promise<AtRiskPatientRow[]> {
-  await requireRole(["Admin"]);
-  const supabase = await createClient();
+  await requireScreen("reportes");
+  const supabase = createAdminClient();
 
   const { data: appts, error: apptError } = await supabase
     .from("appointments")
@@ -284,8 +288,8 @@ export type PatientsDataReport = {
 };
 
 export async function getPatientsDataReport(filters: DateFilters): Promise<PatientsDataReport> {
-  await requireRole(["Admin"]);
-  const supabase = await createClient();
+  await requireScreen("reportes");
+  const supabase = createAdminClient();
 
   const from = filters.fromKey ? combineClinicDateTime(filters.fromKey, "00:00") : null;
   const to = filters.toKey ? addDays(combineClinicDateTime(filters.toKey, "00:00"), 1) : null;
@@ -348,11 +352,11 @@ export async function getAuditReport(
   filters: DateFilters,
   tableName: string | null,
 ): Promise<AuditReportEntry[]> {
-  await requireRole(["Admin"]);
+  await requireScreen("admin.auditoria");
   const from = filters.fromKey ? combineClinicDateTime(filters.fromKey, "00:00") : null;
   const to = filters.toKey ? addDays(combineClinicDateTime(filters.toKey, "00:00"), 1) : null;
 
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   let query = supabase
     .from("audit_log")
     .select("id, table_name, action, summary, performed_by_name, created_at")

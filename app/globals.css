@@ -53,7 +53,7 @@
      rosa #E56880 · blush #EFD8DC · malva #C4979A · gris-azulado #C3C7D2 */
   --background: oklch(98.5% 0.01 5.7);
   --foreground: oklch(28% 0.03 14);
-  --card: oklch(100% 0 0 / 45%);
+  --card: oklch(100% 0 0);
   --card-foreground: oklch(28% 0.03 14);
   --popover: oklch(100% 0 0 / 92%);
   --popover-foreground: oklch(28% 0.03 14);
@@ -113,6 +113,19 @@
   --type-prenatal: oklch(67.5% 0.156 10.3);
   --type-general: oklch(52% 0.05 270);
   --type-seguimiento: oklch(48% 0.04 265);
+
+  /* Paleta categórica para gráficas con series arbitrarias sin orden natural
+     (ej. productos más vendidos) — validada con el validador de daltonismo
+     del skill "dataviz" (separación CVD y de visión normal, contraste vs.
+     superficie) en vez de elegida a ojo. Orden fijo: nunca reasignar por
+     rango/filtro. */
+  --dataviz-cat-1: #2a78d6;
+  --dataviz-cat-2: #eb6834;
+  --dataviz-cat-3: #1baf7a;
+  --dataviz-cat-4: #eda100;
+  --dataviz-cat-5: #e87ba4;
+  --dataviz-cat-6: #008300;
+  --dataviz-cat-7: #4a3aa7;
 }
 
 .dark {
@@ -168,6 +181,14 @@
   --type-prenatal: oklch(75% 0.13 10.3);
   --type-general: oklch(78% 0.03 270);
   --type-seguimiento: oklch(72% 0.04 265);
+
+  --dataviz-cat-1: #3987e5;
+  --dataviz-cat-2: #d95926;
+  --dataviz-cat-3: #199e70;
+  --dataviz-cat-4: #c98500;
+  --dataviz-cat-5: #d55181;
+  --dataviz-cat-6: #008300;
+  --dataviz-cat-7: #9085e9;
 }
 
 @layer base {

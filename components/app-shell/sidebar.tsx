@@ -4,7 +4,7 @@ import Link from "next/link";
 import { motion } from "motion/react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { logout } from "@/app/actions/auth";
-import { GENERAL_NAV, ADMIN_NAV, type NavItem } from "./nav-config";
+import { GENERAL_NAV, ADMIN_NAV, isNavItemVisible, type NavItem } from "./nav-config";
 import type { Profile } from "@/lib/auth/roles";
 
 function getInitials(name: string): string {
@@ -30,7 +30,7 @@ function NavLink({
     <Link
       href={item.href}
       title={item.label}
-      className={`group relative flex items-center gap-2.5 overflow-hidden rounded-xl px-2.5 py-2.5 text-sm transition-[color,transform] duration-150 active:scale-[0.96] ${
+      className={`group relative flex items-center gap-2.5 overflow-hidden rounded-xl px-2.5 py-2.5 text-sm transition-[color,transform] duration-150 outline-none active:scale-[0.96] focus-visible:ring-2 focus-visible:ring-ring/50 ${
         active ? "font-semibold text-primary" : "font-medium text-foreground hover:bg-accent"
       }`}
     >
@@ -58,6 +58,7 @@ function NavLink({
 
 export function Sidebar({
   profile,
+  allowedScreens,
   pathname,
   isDesktop,
   collapsed,
@@ -65,6 +66,7 @@ export function Sidebar({
   onToggleCollapsed,
 }: {
   profile: Profile;
+  allowedScreens: string[];
   pathname: string;
   isDesktop: boolean;
   collapsed: boolean;
@@ -74,13 +76,14 @@ export function Sidebar({
   const expanded = isDesktop ? !collapsed : true;
   const width = isDesktop ? (collapsed ? "76px" : "272px") : "272px";
 
-  const generalItems = GENERAL_NAV.filter((item) => item.roles.includes(profile.role.name));
-  const adminItems = ADMIN_NAV.filter((item) => item.roles.includes(profile.role.name));
+  const allowedSet = new Set(allowedScreens);
+  const generalItems = GENERAL_NAV.filter((item) => isNavItemVisible(item, profile.role.name, allowedSet));
+  const adminItems = ADMIN_NAV.filter((item) => isNavItemVisible(item, profile.role.name, allowedSet));
 
   return (
     <div
       style={{ width, position: isDesktop ? "relative" : "fixed" }}
-      className={`inset-y-0 left-0 z-40 flex h-dvh shrink-0 flex-col overflow-hidden border-r border-white/70 bg-[color:var(--sidebar)] shadow-[inset_-1px_0_0_rgba(255,255,255,0.4)] backdrop-blur-2xl backdrop-saturate-150 transition-[width,transform] duration-200 ease-out ${
+      className={`inset-y-0 left-0 z-40 flex h-dvh shrink-0 flex-col overflow-hidden border-r border-black/[0.08] bg-[color:var(--sidebar)] backdrop-blur-2xl backdrop-saturate-150 transition-[width,transform] duration-200 ease-out ${
         isDesktop ? "" : open ? "translate-x-0" : "-translate-x-full"
       } ${expanded ? "p-4" : "p-3"}`}
     >
@@ -88,9 +91,9 @@ export function Sidebar({
         <div
           className="size-[38px] shrink-0 rounded-xl bg-white shadow-sm"
           style={{
-            backgroundImage: "url(/logo.png)",
-            backgroundSize: "69px 38px",
-            backgroundPosition: "0 0",
+            backgroundImage: "url(/logo-icon.png)",
+            backgroundSize: "contain",
+            backgroundPosition: "center",
             backgroundRepeat: "no-repeat",
           }}
         />
@@ -109,7 +112,7 @@ export function Sidebar({
             type="button"
             onClick={onToggleCollapsed}
             title="Contraer menú"
-            className="flex size-[26px] shrink-0 items-center justify-center rounded-lg border border-white/80 bg-white/60 hover:bg-white/80"
+            className="flex size-[26px] shrink-0 items-center justify-center rounded-lg border border-white/80 bg-white/60 outline-none hover:bg-white/80 focus-visible:ring-2 focus-visible:ring-ring/50"
           >
             <ChevronLeft className="size-3.5 text-muted-foreground" strokeWidth={2} />
           </button>
@@ -121,7 +124,7 @@ export function Sidebar({
           type="button"
           onClick={onToggleCollapsed}
           title="Expandir menú"
-          className="mx-auto mb-2 flex size-[26px] shrink-0 items-center justify-center rounded-lg border border-white/80 bg-white/60 hover:bg-white/80"
+          className="mx-auto mb-2 flex size-[26px] shrink-0 items-center justify-center rounded-lg border border-white/80 bg-white/60 outline-none hover:bg-white/80 focus-visible:ring-2 focus-visible:ring-ring/50"
         >
           <ChevronRight className="size-3.5 text-muted-foreground" strokeWidth={2} />
         </button>
@@ -165,7 +168,7 @@ export function Sidebar({
         <Link
           href="/cuenta"
           title="Mi cuenta"
-          className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl p-1 -m-1 hover:bg-accent"
+          className="-m-1 flex min-w-0 flex-1 items-center gap-2.5 rounded-xl p-1 outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/50"
         >
           <div className="flex size-[38px] shrink-0 items-center justify-center rounded-full bg-[image:var(--gradient-neutral)] font-heading text-[13px] font-bold text-white">
             {getInitials(profile.full_name)}
@@ -184,7 +187,7 @@ export function Sidebar({
             <button
               type="submit"
               title="Cerrar sesión"
-              className="shrink-0 text-[11px] font-semibold whitespace-nowrap text-primary hover:underline"
+              className="-m-1 shrink-0 rounded-md p-1 text-[11px] font-semibold whitespace-nowrap text-primary outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring/50"
             >
               Salir
             </button>

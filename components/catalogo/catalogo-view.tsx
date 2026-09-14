@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ClipboardListIcon, PackageIcon, PencilIcon, PlusIcon, ReceiptIcon } from "lucide-react";
-import type { ServiceRow, ProductRow, SaleRow } from "@/app/actions/catalog";
+import { ClipboardListIcon, PackageIcon, PencilIcon, PlusIcon } from "lucide-react";
+import type { ServiceRow, ProductRow } from "@/app/actions/catalog";
 import { CATEGORY_LABELS } from "@/components/agenda/appointment-meta";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,18 +21,14 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { BackToAdminLink } from "@/components/admin/back-to-admin-link";
 import { ServiceDialog } from "./service-dialog";
 import { ProductDialog } from "./product-dialog";
-import { SaleDialog } from "./sale-dialog";
 import { formatCurrency } from "@/lib/format";
 
-type Tab = "servicios" | "productos" | "ventas";
+type Tab = "servicios" | "productos";
 
 const TABS: { value: Tab; label: string }[] = [
   { value: "servicios", label: "Servicios" },
   { value: "productos", label: "Productos" },
-  { value: "ventas", label: "Ventas" },
 ];
-
-const DATE_FORMAT = new Intl.DateTimeFormat("es-GT", { dateStyle: "medium", timeStyle: "short" });
 
 function StatusBadge({ active }: { active: boolean }) {
   return (
@@ -53,11 +49,9 @@ function StatusBadge({ active }: { active: boolean }) {
 export function CatalogoView({
   services,
   products,
-  sales,
 }: {
   services: ServiceRow[];
   products: ProductRow[];
-  sales: SaleRow[];
 }) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("servicios");
@@ -67,9 +61,6 @@ export function CatalogoView({
 
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<ProductRow | undefined>(undefined);
-
-  const [saleDialogOpen, setSaleDialogOpen] = useState(false);
-  const [saleDialogKey, setSaleDialogKey] = useState(0);
 
   function refresh() {
     router.refresh();
@@ -97,9 +88,8 @@ export function CatalogoView({
 
   return (
     <div className="flex flex-col gap-4">
-      <BackToAdminLink />
-
-      <div className="flex justify-end">
+      <div className="flex items-center justify-between gap-3">
+        <BackToAdminLink />
         {tab === "servicios" && (
           <Button onClick={openCreateService}>
             <PlusIcon />
@@ -110,17 +100,6 @@ export function CatalogoView({
           <Button onClick={openCreateProduct}>
             <PlusIcon />
             Nuevo producto
-          </Button>
-        )}
-        {tab === "ventas" && (
-          <Button
-            onClick={() => {
-              setSaleDialogKey((k) => k + 1);
-              setSaleDialogOpen(true);
-            }}
-          >
-            <PlusIcon />
-            Nueva venta
           </Button>
         )}
       </div>
@@ -269,48 +248,6 @@ export function CatalogoView({
         </Card>
       )}
 
-      {tab === "ventas" && (
-        <Card className="gap-0 p-0">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="pl-5">Fecha</TableHead>
-                <TableHead>Paciente</TableHead>
-                <TableHead>Productos</TableHead>
-                <TableHead>Vendido por</TableHead>
-                <TableHead className="pr-5 text-right">Total</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sales.map((sale) => (
-                <TableRow key={sale.id}>
-                  <TableCell className="pl-5 whitespace-nowrap">
-                    {DATE_FORMAT.format(new Date(sale.created_at))}
-                  </TableCell>
-                  <TableCell>{sale.patient_name ?? "—"}</TableCell>
-                  <TableCell className="max-w-xs">
-                    <span className="text-sm text-muted-foreground">
-                      {sale.items.map((i) => `${i.quantity} ${i.product_name}`).join(", ")}
-                    </span>
-                  </TableCell>
-                  <TableCell>{sale.sold_by_name}</TableCell>
-                  <TableCell className="pr-5 text-right font-semibold text-foreground">
-                    {formatCurrency(sale.total)}
-                  </TableCell>
-                </TableRow>
-              ))}
-              {sales.length === 0 && (
-                <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={5} className="p-0">
-                    <EmptyState icon={ReceiptIcon} message="Sin ventas todavía." />
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </Card>
-      )}
-
       <ServiceDialog
         open={serviceDialogOpen}
         onOpenChange={setServiceDialogOpen}
@@ -321,13 +258,6 @@ export function CatalogoView({
         open={productDialogOpen}
         onOpenChange={setProductDialogOpen}
         product={editingProduct}
-        onSaved={refresh}
-      />
-      <SaleDialog
-        key={saleDialogKey}
-        open={saleDialogOpen}
-        onOpenChange={setSaleDialogOpen}
-        products={products}
         onSaved={refresh}
       />
     </div>

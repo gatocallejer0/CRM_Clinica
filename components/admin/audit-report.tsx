@@ -4,9 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { DateRange } from "react-day-picker";
 import { DownloadIcon, HistoryIcon } from "lucide-react";
 import { getAuditReport, type AuditReportEntry } from "@/app/actions/reports";
-import { toClinicDateKey } from "@/lib/clinic-time";
+import { toClinicDateKey, normalizeSpaces } from "@/lib/clinic-time";
 import { exportRowsToCsv } from "@/lib/export-csv";
-import { DateRangeFilter } from "./date-range-filter";
+import { DateRangeFilter } from "@/components/reportes/date-range-filter";
 import { Card } from "@/components/ui/card";
 import {
   Table,
@@ -82,7 +82,7 @@ export function AuditReportView({ initialEntries }: { initialEntries: AuditRepor
     exportRowsToCsv(
       "reporte-auditoria",
       entries.map((entry) => ({
-        "Fecha y hora": DATE_TIME_FORMAT.format(new Date(entry.created_at)),
+        "Fecha y hora": normalizeSpaces(DATE_TIME_FORMAT.format(new Date(entry.created_at))),
         Usuario: entry.performed_by_name,
         Acción: ACTION_LABELS[entry.action],
         Módulo: AUDIT_TABLE_LABELS[entry.table_name] ?? entry.table_name,
@@ -149,7 +149,7 @@ export function AuditReportView({ initialEntries }: { initialEntries: AuditRepor
               entries.map((entry) => (
                 <TableRow key={entry.id}>
                   <TableCell className="pl-5 whitespace-nowrap">
-                    {DATE_TIME_FORMAT.format(new Date(entry.created_at))}
+                    {normalizeSpaces(DATE_TIME_FORMAT.format(new Date(entry.created_at)))}
                   </TableCell>
                   <TableCell className="whitespace-nowrap">{entry.performed_by_name}</TableCell>
                   <TableCell className="whitespace-nowrap text-primary font-medium">

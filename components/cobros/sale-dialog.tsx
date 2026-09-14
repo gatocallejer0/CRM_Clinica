@@ -36,6 +36,8 @@ import {
   ComboboxEmpty,
 } from "@/components/ui/combobox";
 import { formatCurrency } from "@/lib/format";
+import { PAYMENT_METHOD_LABELS } from "./sale-meta";
+import type { PaymentMethod } from "@/app/actions/catalog";
 
 type ItemKind = "product" | "service";
 type Line = { key: string; kind: ItemKind; itemId: string; quantity: string; unitPrice: string };
@@ -267,6 +269,30 @@ export function SaleDialog({
                 <PlusIcon className="size-3.5" />
                 Agregar línea
               </Button>
+            </Field>
+
+            <Field label="Método de pago" htmlFor="paymentMethod" required>
+              <Combobox
+                items={Object.keys(PAYMENT_METHOD_LABELS)}
+                itemToStringLabel={(v: string) => PAYMENT_METHOD_LABELS[v as PaymentMethod] ?? v}
+                name="paymentMethod"
+                required
+              >
+                <ComboboxInputGroup>
+                  <ComboboxInput id="paymentMethod" placeholder="¿Cómo pagó?" />
+                  <ComboboxTrigger />
+                </ComboboxInputGroup>
+                <ComboboxPopup>
+                  <ComboboxEmpty>Sin resultados.</ComboboxEmpty>
+                  <ComboboxList>
+                    {(v: string) => (
+                      <ComboboxItem key={v} value={v}>
+                        {PAYMENT_METHOD_LABELS[v as PaymentMethod]}
+                      </ComboboxItem>
+                    )}
+                  </ComboboxList>
+                </ComboboxPopup>
+              </Combobox>
             </Field>
 
             <Field label="Notas" htmlFor="notes" hint="Opcional">

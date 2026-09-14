@@ -2,7 +2,7 @@
 
 import * as z from "zod";
 import { revalidatePath } from "next/cache";
-import { requireRole } from "@/lib/auth/roles";
+import { requireScreen } from "@/lib/auth/roles";
 import { createClient } from "@/lib/supabase/server";
 
 const SECTIONS = ["general", "medical_history"] as const;
@@ -38,7 +38,7 @@ function revalidateFormPaths() {
 
 /**
  * Catálogo de preguntas + opciones del formulario de pacientes. Sin
- * requireRole a propósito: RLS filtra el resultado según quién llama —
+ * requireScreen a propósito: RLS filtra el resultado según quién llama —
  * `anon` (formulario público) solo ve preguntas/opciones activas, el
  * personal autenticado ve el catálogo completo (ver 0004_dynamic_form.sql).
  */
@@ -76,7 +76,7 @@ export async function createFormField(input: {
   fieldType: string;
   required: boolean;
 }): Promise<{ error?: string; field?: FormField }> {
-  await requireRole(["Admin"]);
+  await requireScreen("admin.formulario");
 
   const parsed = CreateFormFieldSchema.safeParse(input);
   if (!parsed.success) {
@@ -125,7 +125,7 @@ export async function updateFormField(
     sortOrder: number;
   }>,
 ): Promise<{ error?: string }> {
-  await requireRole(["Admin"]);
+  await requireScreen("admin.formulario");
   const supabase = await createClient();
 
   const { error } = await supabase
@@ -145,7 +145,7 @@ export async function updateFormField(
 }
 
 export async function deleteFormField(id: string): Promise<{ error?: string }> {
-  await requireRole(["Admin"]);
+  await requireScreen("admin.formulario");
   const supabase = await createClient();
 
   const { error } = await supabase.from("form_fields").delete().eq("id", id);
@@ -173,7 +173,7 @@ export async function createFormFieldOption(input: {
   fieldId: string;
   value: string;
 }): Promise<{ error?: string; option?: FormFieldOption }> {
-  await requireRole(["Admin"]);
+  await requireScreen("admin.formulario");
 
   const parsed = CreateOptionSchema.safeParse(input);
   if (!parsed.success) {
@@ -214,7 +214,7 @@ export async function updateFormFieldOption(
   id: string,
   patch: Partial<{ value: string; active: boolean; sortOrder: number }>,
 ): Promise<{ error?: string }> {
-  await requireRole(["Admin"]);
+  await requireScreen("admin.formulario");
   const supabase = await createClient();
 
   const { error } = await supabase
@@ -233,7 +233,7 @@ export async function updateFormFieldOption(
 }
 
 export async function deleteFormFieldOption(id: string): Promise<{ error?: string }> {
-  await requireRole(["Admin"]);
+  await requireScreen("admin.formulario");
   const supabase = await createClient();
 
   const { error } = await supabase.from("form_field_options").delete().eq("id", id);

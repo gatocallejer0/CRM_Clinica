@@ -1,20 +1,34 @@
 import Link from "next/link";
-import { CircleCheckIcon } from "lucide-react";
+import { CircleCheckIcon, TriangleAlertIcon } from "lucide-react";
 import type { AtRiskPatientRow } from "@/app/actions/reports";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 
-export function AtRiskCard({ patients, total }: { patients: AtRiskPatientRow[]; total: number }) {
+export function AtRiskCard({
+  patients,
+  total,
+  error,
+}: {
+  patients: AtRiskPatientRow[];
+  total: number;
+  error?: boolean;
+}) {
   return (
     <Card className="gap-0 p-0">
       <CardHeader className="p-5">
-        <CardTitle>Pacientes en riesgo de abandono</CardTitle>
-        <CardDescription>Sin cita en los últimos 90 días.</CardDescription>
+        <CardTitle>Pacientes sin control reciente</CardTitle>
+        <CardDescription>{error ? "No se pudo cargar esta lista." : "Sin cita en los últimos 90 días."}</CardDescription>
       </CardHeader>
 
       <CardContent className="px-0">
-        {patients.length === 0 ? (
-          <EmptyState icon={CircleCheckIcon} message="Ninguna paciente en riesgo ahora mismo." tone="positive" />
+        {error ? (
+          <EmptyState
+            icon={TriangleAlertIcon}
+            message="No se pudo cargar. Intenta recargar la página."
+            tone="warning"
+          />
+        ) : patients.length === 0 ? (
+          <EmptyState icon={CircleCheckIcon} message="Todas las pacientes tienen control reciente." tone="positive" />
         ) : (
           <div className="flex flex-col">
             {patients.map((p) => (

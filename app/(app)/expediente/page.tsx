@@ -1,4 +1,4 @@
-import { requireRole } from "@/lib/auth/roles";
+import { requireScreen } from "@/lib/auth/roles";
 import { listPatientsForExpediente, getPatientDetail } from "@/app/actions/clinical-records";
 import { getFormFieldsWithOptions } from "@/app/actions/form-fields";
 import { ExpedienteView } from "@/components/expediente/expediente-view";
@@ -13,7 +13,7 @@ export default async function ExpedientePage({
   // llamada. El detalle del paciente sí debe esperar la lista — cuál paciente
   // mostrar depende de ella (dependencia real, no solo de orden del código).
   const [profile, { patient: requestedId }, patients, formFields] = await Promise.all([
-    requireRole(["Admin", "Doctor"]),
+    requireScreen("pacientes"),
     searchParams,
     listPatientsForExpediente(),
     getFormFieldsWithOptions(),

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireRole } from "@/lib/auth/roles";
+import { requireScreen } from "@/lib/auth/roles";
 import { createAdminClient } from "@/lib/supabase/server";
 import {
   refreshAccessToken,
@@ -13,8 +13,6 @@ import {
 } from "@/lib/google-calendar";
 import { CLINIC_TZ } from "@/lib/clinic-time";
 import type { SupabaseClient } from "@supabase/supabase-js";
-
-const STAFF_ROLES = ["Admin", "Doctor", "Recepción"];
 
 /**
  * Access token vigente para la doctora, renovándolo si está por vencer.
@@ -37,16 +35,31 @@ async function getValidAccessToken(
   const expiresInMs = new Date(connection.token_expires_at).getTime() - Date.now();
   if (expiresInMs > 60_000) return connection.access_token;
 
-  const refreshed = await refreshAccessToken(connection.refresh_token);
-  await admin
-    .from("google_calendar_connections")
-    .update({
-      access_token: refreshed.access_token,
-      token_expires_at: new Date(Date.now() + refreshed.expires_in * 1000).toISOString(),
-    })
-    .eq("doctor_id", doctorId);
+  try {
+    const refreshed = await refreshAccessToken(connection.refresh_token);
+    await admin
+      .from("google_calendar_connections")
+      .update({
+        access_token: refreshed.access_token,
+        token_expires_at: new Date(Date.now() + refreshed.expires_in * 1000).toISOString(),
+      })
+      .eq("doctor_id", doctorId);
 
-  return refreshed.access_token;
+    return refreshed.access_token;
+  } catch (err) {
+    // Google rechaza el refresh token de forma permanente (revocado desde la
+    // cuenta de Google, o expirado por inactividad) — reintentar no sirve de
+    // nada con un token muerto. Se borra la conexión para que "Cuenta" deje
+    // de mostrar "Conectado" y la doctora sepa que debe volver a
+    // autorizar, en vez de quedar con un badge verde engañoso mientras la
+    // sincronización real falla en silencio. Un error 5xx/de red sí puede
+    // ser transitorio, así que solo se borra ante un rechazo 4xx (invalid_grant y similares).
+    const message = err instanceof Error ? err.message : String(err);
+    if (/Google token endpoint error \(4\d\d\)/.test(message)) {
+      await admin.from("google_calendar_connections").delete().eq("doctor_id", doctorId);
+    }
+    throw err;
+  }
 }
 
 /**
@@ -97,7 +110,7 @@ export async function listGoogleReservations(
   rangeStartISO: string,
   rangeEndISO: string,
 ): Promise<GoogleReservation[]> {
-  await requireRole(STAFF_ROLES);
+  await requireScreen("agenda");
   const admin = createAdminClient();
 
   const { data: connections } = await admin.from("google_calendar_connections").select("doctor_id");
@@ -149,7 +162,7 @@ export type GoogleCalendarStatus = { connected: boolean; googleEmail: string | n
 
 /** Estado de conexión de la usuaria actual (no de una doctora arbitraria — siempre "yo"). */
 export async function getGoogleCalendarStatus(): Promise<GoogleCalendarStatus> {
-  const profile = await requireRole(STAFF_ROLES);
+  const profile = await requireScreen("cuenta");
   const admin = createAdminClient();
 
   const { data } = await admin
@@ -162,7 +175,7 @@ export async function getGoogleCalendarStatus(): Promise<GoogleCalendarStatus> {
 }
 
 export async function disconnectGoogleCalendar(): Promise<{ error?: string }> {
-  const profile = await requireRole(STAFF_ROLES);
+  const profile = await requireScreen("cuenta");
   const admin = createAdminClient();
 
   const { error } = await admin

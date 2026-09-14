@@ -1,8 +1,15 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { updateSaleStatus, type CatalogFormState, type SaleRow } from "@/app/actions/catalog";
+import {
+  updateSaleStatus,
+  type CatalogFormState,
+  type PaymentMethod,
+  type SaleRow,
+  type SaleStatus,
+} from "@/app/actions/catalog";
+import { normalizeSpaces } from "@/lib/clinic-time";
 import {
   Dialog,
   DialogContent,
@@ -34,7 +41,7 @@ import {
   ComboboxEmpty,
 } from "@/components/ui/combobox";
 import { formatCurrency } from "@/lib/format";
-import { SALE_STATUS_LABELS } from "./sale-meta";
+import { PAYMENT_METHOD_LABELS, SALE_STATUS_LABELS } from "./sale-meta";
 
 const DATE_FORMAT = new Intl.DateTimeFormat("es-GT", { dateStyle: "medium", timeStyle: "short" });
 
@@ -53,6 +60,11 @@ export function SaleDetailDialog({
     updateSaleStatus,
     undefined,
   );
+  // cobros-view.tsx monta este componente con key={selectedSale?.id}, así
+  // que este estado (y el de useActionState arriba) se reinicia solo cada
+  // vez que se abre una venta distinta — igual que AppointmentDialog con
+  // dialogKey en agenda-view.tsx.
+  const [status, setStatus] = useState<SaleStatus>(sale?.status ?? "pagado");
 
   useEffect(() => {
     if (state?.success) {
@@ -71,7 +83,7 @@ export function SaleDetailDialog({
         <DialogHeader>
           <DialogTitle>{sale.patient_name ?? "Venta sin paciente"}</DialogTitle>
           <DialogDescription>
-            {DATE_FORMAT.format(new Date(sale.created_at))} · Vendido por {sale.sold_by_name}
+            {normalizeSpaces(DATE_FORMAT.format(new Date(sale.created_at)))} · Vendido por {sale.sold_by_name}
           </DialogDescription>
         </DialogHeader>
 
@@ -111,11 +123,12 @@ export function SaleDetailDialog({
             </p>
           )}
 
-          <FormStagger>
+          <FormStagger className="flex flex-col gap-4">
             <Field label="Estado" htmlFor="status">
               <Combobox
                 items={Object.keys(SALE_STATUS_LABELS)}
                 defaultValue={sale.status}
+                onValueChange={(v) => setStatus((v as SaleStatus) ?? sale.status)}
                 itemToStringLabel={(v: string) => SALE_STATUS_LABELS[v as keyof typeof SALE_STATUS_LABELS] ?? v}
                 name="status"
               >
@@ -135,6 +148,33 @@ export function SaleDetailDialog({
                 </ComboboxPopup>
               </Combobox>
             </Field>
+
+            {status === "pagado" && (
+              <Field label="Método de pago" htmlFor="paymentMethod" required>
+                <Combobox
+                  items={Object.keys(PAYMENT_METHOD_LABELS)}
+                  defaultValue={sale.payment_method ?? undefined}
+                  itemToStringLabel={(v: string) => PAYMENT_METHOD_LABELS[v as PaymentMethod] ?? v}
+                  name="paymentMethod"
+                  required
+                >
+                  <ComboboxInputGroup>
+                    <ComboboxInput id="paymentMethod" placeholder="¿Cómo se pagó?" />
+                    <ComboboxTrigger />
+                  </ComboboxInputGroup>
+                  <ComboboxPopup>
+                    <ComboboxEmpty>Sin resultados.</ComboboxEmpty>
+                    <ComboboxList>
+                      {(v: string) => (
+                        <ComboboxItem key={v} value={v}>
+                          {PAYMENT_METHOD_LABELS[v as PaymentMethod]}
+                        </ComboboxItem>
+                      )}
+                    </ComboboxList>
+                  </ComboboxPopup>
+                </Combobox>
+              </Field>
+            )}
           </FormStagger>
 
           {state?.error && (

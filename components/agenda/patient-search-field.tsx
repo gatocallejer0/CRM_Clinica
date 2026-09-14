@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { searchPatients, type PatientOption } from "@/app/actions/appointments";
 import { Input } from "@/components/ui/input";
 
@@ -20,10 +20,23 @@ export function PatientSearchField({
   const [selected, setSelected] = useState<PatientOption | null>(initialPatient ?? null);
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Se incrementa en cada tecla para poder descartar una respuesta que
+  // llegue tarde (ej. la búsqueda de "mar" resuelve después que "maria") sin
+  // pisar el resultado más reciente.
+  const requestIdRef = useRef(0);
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
 
   function handleChange(value: string) {
     setQuery(value);
     setSelected(null);
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
 
     if (value.trim().length < 2) {
       setResults([]);
@@ -31,11 +44,18 @@ export function PatientSearchField({
       return;
     }
 
-    startTransition(async () => {
-      const data = await searchPatients(value);
-      setResults(data);
-      setOpen(true);
-    });
+    const requestId = ++requestIdRef.current;
+    // Espera a que la usuaria haga una pausa antes de consultar al
+    // servidor — sin esto, cada tecla dispara su propia búsqueda contra
+    // Supabase.
+    debounceRef.current = setTimeout(() => {
+      startTransition(async () => {
+        const data = await searchPatients(value);
+        if (requestId !== requestIdRef.current) return;
+        setResults(data);
+        setOpen(true);
+      });
+    }, 250);
   }
 
   function handleSelect(patient: PatientOption) {

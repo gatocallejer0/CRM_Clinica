@@ -2,7 +2,6 @@
 
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { TriangleAlertIcon } from "lucide-react";
 import {
   createAppointment,
   updateAppointment,
@@ -14,6 +13,7 @@ import {
 import { PatientSearchField } from "./patient-search-field";
 import { AppointmentDateTimeFields } from "./appointment-date-time-fields";
 import { STATUS_LABELS } from "./appointment-meta";
+import { OverlapWarning } from "./overlap-warning";
 import { toClinicDateKey, toClinicTimeKey } from "@/lib/clinic-time";
 import {
   Dialog,
@@ -315,32 +315,11 @@ export function AppointmentDialog({
           )}
 
           {state?.overlap && state.overlap.length > 0 && !overlapDismissed && (
-            <Alert className="border-amber-300/70 bg-amber-50 text-amber-900">
-              <TriangleAlertIcon className="text-amber-600" />
-              <AlertDescription className="text-amber-900/90">
-                <p className="font-medium text-amber-900">Ya hay una cita en ese horario:</p>
-                <ul className="mt-1 list-disc pl-4">
-                  {state.overlap.map((c, i) => (
-                    <li key={i}>
-                      {c.timeLabel} — {c.patientName}
-                    </li>
-                  ))}
-                </ul>
-                <div className="mt-3 flex gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setOverlapDismissed(true)}
-                  >
-                    Elegir otro horario
-                  </Button>
-                  <Button type="button" size="sm" onClick={handleConfirmOverlap}>
-                    Confirmar de todas formas
-                  </Button>
-                </div>
-              </AlertDescription>
-            </Alert>
+            <OverlapWarning
+              overlap={state.overlap}
+              onDismiss={() => setOverlapDismissed(true)}
+              onConfirm={handleConfirmOverlap}
+            />
           )}
 
           <DialogFooter>

@@ -4,7 +4,7 @@ import * as z from "zod";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { rateLimit, getClientIp, RateLimitError } from "@/lib/rate-limit";
-import { requireRole } from "@/lib/auth/roles";
+import { requireScreen } from "@/lib/auth/roles";
 
 const EmailSchema = z.email({ error: "Ingresa un correo válido." });
 
@@ -56,9 +56,10 @@ export async function registerPatient(
 
   if (error) {
     console.error("[registerPatient] Supabase rpc error:", error.message);
-    return {
-      error: "No se pudo completar el registro. Verifica los datos e intenta de nuevo.",
-    };
+    // register_patient() solo lanza excepciones con mensaje pensado para la
+    // paciente (correo inválido, pregunta obligatoria, correo ya
+    // registrado) — mostrarlo tal cual en vez de un genérico que lo tapa.
+    return { error: error.message || "No se pudo completar el registro. Verifica los datos e intenta de nuevo." };
   }
 
   return { success: true };
@@ -78,7 +79,7 @@ export type UpdatePatientState =
 export async function getPatientFicha(
   patientId: string,
 ): Promise<{ email: string; answers: Record<string, string> } | null> {
-  await requireRole(["Admin", "Doctor"]);
+  await requireScreen("pacientes");
   const supabase = await createClient();
 
   const [{ data: patient, error: patientError }, { data: rows, error: answersError }] = await Promise.all([
@@ -112,7 +113,7 @@ export async function updatePatientFicha(
   _prevState: UpdatePatientState,
   formData: FormData,
 ): Promise<UpdatePatientState> {
-  await requireRole(["Admin", "Doctor"]);
+  await requireScreen("pacientes");
 
   const patientIdResult = z.uuid({ error: "Paciente inválido." }).safeParse(formData.get("patientId"));
   if (!patientIdResult.success) {

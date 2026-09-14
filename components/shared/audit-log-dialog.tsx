@@ -4,6 +4,7 @@ import { useState } from "react";
 import { HistoryIcon } from "lucide-react";
 import { getRecordAuditLog } from "@/app/actions/audit";
 import type { AuditLogEntry } from "@/lib/audit";
+import { normalizeSpaces } from "@/lib/clinic-time";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -73,7 +74,7 @@ export function AuditLogDialog({
                       {ACTION_LABELS[entry.action]}
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      {DATE_TIME_FORMAT.format(new Date(entry.created_at))}
+                      {normalizeSpaces(DATE_TIME_FORMAT.format(new Date(entry.created_at)))}
                     </span>
                   </div>
                   <p className="mt-1 text-sm text-foreground">{entry.summary}</p>

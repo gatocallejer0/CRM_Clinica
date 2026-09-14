@@ -2,11 +2,12 @@
 
 import * as z from "zod";
 import { revalidatePath } from "next/cache";
-import { requireRole } from "@/lib/auth/roles";
+import { requireScreen } from "@/lib/auth/roles";
 import { createClient } from "@/lib/supabase/server";
 import { combineClinicDateTime, formatClinicTime } from "@/lib/clinic-time";
 import { rateLimit, getClientIp, RateLimitError } from "@/lib/rate-limit";
 import { syncAppointmentToGoogleCalendar, getDoctorGoogleBusyBlocks } from "./google-calendar";
+import { createSaleFromAttendedAppointment } from "./catalog";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
@@ -22,7 +23,42 @@ async function syncToGoogleCalendarSilently(appointmentId: string) {
   }
 }
 
-const SCHEDULING_ROLES = ["Admin", "Doctor", "Recepción"];
+/**
+ * Junta el precio del servicio y el nombre de la doctora antes de crear el
+ * cobro pendiente de una cita recién marcada "atendida" — para los dos
+ * flujos (crear/editar) que no traen esos datos ya cargados de memoria (a
+ * diferencia del auto-marcado en listAppointments, que sí los tiene del
+ * select con join y arma el cobro directo). Best-effort, igual que la
+ * sincronización con Google Calendar: nunca debe impedir que la cita se
+ * guarde.
+ */
+async function createAttendanceSaleSilently(
+  supabase: SupabaseClient,
+  {
+    appointmentId,
+    patientId,
+    serviceId,
+    doctorId,
+  }: { appointmentId: string; patientId: string; serviceId: string; doctorId: string },
+) {
+  try {
+    const [{ data: service }, { data: doctor }] = await Promise.all([
+      supabase.from("services").select("price").eq("id", serviceId).maybeSingle(),
+      supabase.from("profiles").select("full_name").eq("id", doctorId).maybeSingle(),
+    ]);
+
+    await createSaleFromAttendedAppointment({
+      appointmentId,
+      patientId,
+      serviceId,
+      price: service?.price ?? 0,
+      soldBy: doctorId,
+      soldByName: doctor?.full_name ?? "Clínica",
+    });
+  } catch (err) {
+    console.error("[createAttendanceSaleSilently] Error:", err);
+  }
+}
 
 export type ServiceCategory = "prenatal" | "general" | "seguimiento";
 export type AppointmentStatus = "confirmada" | "en_espera" | "atendida" | "cancelada";
@@ -63,7 +99,7 @@ type AppointmentRow = {
   notes: string | null;
   patient_id: string;
   doctor: { id: string; full_name: string } | null;
-  service: { id: string; name: string; category: ServiceCategory } | null;
+  service: { id: string; name: string; category: ServiceCategory; price: number | null } | null;
 };
 
 export type OverlapConflict = {
@@ -241,7 +277,7 @@ export async function listAppointments(fromISO: string, toISO: string): Promise<
   const { data, error } = await supabase
     .from("appointments")
     .select(
-      "id, scheduled_at, duration_minutes, status, notes, patient_id, doctor:profiles!doctor_id(id, full_name), service:services(id, name, category)",
+      "id, scheduled_at, duration_minutes, status, notes, patient_id, doctor:profiles!doctor_id(id, full_name), service:services(id, name, category, price)",
     )
     .gte("scheduled_at", fromISO)
     .lt("scheduled_at", toISO)
@@ -274,9 +310,35 @@ export async function listAppointments(fromISO: string, toISO: string): Promise<
       console.error("[listAppointments] Error auto-marcando atendida:", updateError.message);
     } else {
       const staleIdSet = new Set(staleIds);
-      for (const row of rows) {
-        if (staleIdSet.has(row.id)) row.status = "atendida";
+      const attendedRows = rows.filter((row) => staleIdSet.has(row.id));
+      for (const row of attendedRows) {
+        row.status = "atendida";
       }
+
+      // El cobro se arma directo con los datos ya cargados en este mismo
+      // select (con join) — a diferencia de updateAppointment/createAppointment,
+      // que sí necesitan una consulta aparte porque solo tienen los IDs.
+      // Este es el ÚNICO camino de marcado automático (por horario vencido,
+      // sin que nadie la toque) — a diferencia del marcado manual, el cobro
+      // nace directo como "pagado" (efectivo por defecto, corregible después).
+      await Promise.all(
+        attendedRows
+          .filter((row) => row.service)
+          .map((row) =>
+            createSaleFromAttendedAppointment({
+              appointmentId: row.id,
+              patientId: row.patient_id,
+              serviceId: row.service!.id,
+              price: row.service!.price ?? 0,
+              soldBy: row.doctor?.id ?? null,
+              soldByName: row.doctor?.full_name ?? "Clínica",
+              status: "pagado",
+              paymentMethod: "efectivo",
+            }).catch((err) =>
+              console.error("[listAppointments] Error creando cobro automático:", err),
+            ),
+          ),
+      );
     }
   }
 
@@ -319,12 +381,33 @@ export async function listAppointments(fromISO: string, toISO: string): Promise<
  * el nombre se guarda como respuesta a la pregunta "full_name" del catálogo
  * form_fields, igual que hace registerPatient(). Compartido entre
  * createAppointment y assignPatientToGoogleReservation.
+ *
+ * Si ya existe una paciente con ese correo (ej. ya se había agendado antes,
+ * o ya se registró por el formulario) reutiliza ese mismo registro en vez
+ * de crear uno duplicado — a diferencia del formulario público, esta acción
+ * la hace personal ya autenticado, así que no hay riesgo de que alguien sin
+ * permisos toque datos de otra paciente.
  */
 async function createNewPatientRow(
   supabase: SupabaseClient,
   name: string,
   email: string,
 ): Promise<{ id: string } | { error: string }> {
+  const { data: existingPatient, error: lookupError } = await supabase
+    .from("patients")
+    .select("id")
+    .eq("email", email)
+    .maybeSingle();
+
+  if (lookupError) {
+    console.error("[createNewPatientRow] Error buscando paciente existente:", lookupError.message);
+    return { error: "No se pudo verificar si la paciente ya existe." };
+  }
+
+  if (existingPatient) {
+    return { id: existingPatient.id };
+  }
+
   const { data: newPatient, error: patientError } = await supabase
     .from("patients")
     .insert({ email })
@@ -396,7 +479,7 @@ export async function createAppointment(
   _prevState: AppointmentFormState,
   formData: FormData,
 ): Promise<AppointmentFormState> {
-  const profile = await requireRole(SCHEDULING_ROLES);
+  const profile = await requireScreen("agenda");
 
   const parsed = CreateAppointmentSchema.safeParse({
     patientMode: formData.get("patientMode") || "existing",
@@ -460,6 +543,15 @@ export async function createAppointment(
     return { error: "No se pudo agendar la cita." };
   }
 
+  if (parsed.data.status === "atendida") {
+    await createAttendanceSaleSilently(supabase, {
+      appointmentId: newAppointment.id,
+      patientId: patientId!,
+      serviceId: parsed.data.serviceId,
+      doctorId: parsed.data.doctorId,
+    });
+  }
+
   await syncToGoogleCalendarSilently(newAppointment.id);
 
   revalidatePath("/agenda");
@@ -482,7 +574,7 @@ export async function updateAppointment(
   _prevState: AppointmentFormState,
   formData: FormData,
 ): Promise<AppointmentFormState> {
-  await requireRole(SCHEDULING_ROLES);
+  await requireScreen("agenda");
 
   const parsed = UpdateAppointmentSchema.safeParse({
     id: formData.get("id"),
@@ -513,6 +605,15 @@ export async function updateAppointment(
     if (overlap.length > 0) return { overlap };
   }
 
+  // Se necesita el estado (y la paciente) de ANTES del update para saber si
+  // esto es una transición hacia "atendida" — y no, por ejemplo, guardar de
+  // nuevo una cita que ya estaba atendida (eso no debe crear un segundo cobro).
+  const { data: before } = await supabase
+    .from("appointments")
+    .select("status, patient_id")
+    .eq("id", parsed.data.id)
+    .maybeSingle();
+
   const { error } = await supabase
     .from("appointments")
     .update({
@@ -530,6 +631,15 @@ export async function updateAppointment(
     return { error: "No se pudo actualizar la cita." };
   }
 
+  if (before && before.status !== "atendida" && parsed.data.status === "atendida") {
+    await createAttendanceSaleSilently(supabase, {
+      appointmentId: parsed.data.id,
+      patientId: before.patient_id,
+      serviceId: parsed.data.serviceId,
+      doctorId: parsed.data.doctorId,
+    });
+  }
+
   await syncToGoogleCalendarSilently(parsed.data.id);
 
   revalidatePath("/agenda");
@@ -542,7 +652,7 @@ export async function rescheduleAppointment(
   scheduledAtISO: string,
   force = false,
 ): Promise<{ error?: string; overlap?: OverlapConflict[] }> {
-  await requireRole(SCHEDULING_ROLES);
+  await requireScreen("agenda");
   const supabase = await createClient();
 
   if (!force) {
@@ -616,7 +726,7 @@ export async function assignPatientToGoogleReservation(
   _prevState: AssignReservationFormState,
   formData: FormData,
 ): Promise<AssignReservationFormState> {
-  const profile = await requireRole(SCHEDULING_ROLES);
+  const profile = await requireScreen("agenda");
 
   const parsed = AssignReservationSchema.safeParse({
     googleEventId: formData.get("googleEventId"),

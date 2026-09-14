@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireRole } from "@/lib/auth/roles";
+import { requireScreen } from "@/lib/auth/roles";
 import { createClient } from "@/lib/supabase/server";
 import { parseCsv } from "@/lib/csv";
 import type { FormField } from "./form-fields";
@@ -68,7 +68,7 @@ export type ImportPreviewResult = { error: string } | { preview: ImportPreview }
  * real para datos que vienen de un CSV en vez del formulario/selector nativo.
  */
 export async function previewPatientsImport(formData: FormData): Promise<ImportPreviewResult> {
-  await requireRole(["Admin"]);
+  await requireScreen("admin.pacientes");
 
   const file = formData.get("file");
   if (!(file instanceof File)) {
@@ -238,7 +238,7 @@ export type ImportCommitResult = { error: string } | { imported: number; skipped
  * mientras tanto).
  */
 export async function commitPatientsImport(rows: ImportPreviewRow[]): Promise<ImportCommitResult> {
-  const profile = await requireRole(["Admin"]);
+  const profile = await requireScreen("admin.pacientes");
 
   if (rows.length === 0) {
     return { error: "No hay pacientes válidas para importar." };

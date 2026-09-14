@@ -1,4 +1,4 @@
-import { requireRole } from "@/lib/auth/roles";
+import { requireScreen } from "@/lib/auth/roles";
 import { listAppointments, listServices, listDoctors } from "@/app/actions/appointments";
 import { listGoogleReservations } from "@/app/actions/google-calendar";
 import { clinicToday, addDays } from "@/lib/clinic-time";
@@ -14,7 +14,7 @@ export default async function AgendaPage() {
   // listAppointments/listServices/listDoctors — así que no hay que esperar
   // el rol antes de pedirlas. Ahorra un viaje redondo completo a Supabase.
   const [, appointments, reservations, services, doctors] = await Promise.all([
-    requireRole(["Admin", "Doctor", "Recepción"]),
+    requireScreen("agenda"),
     listAppointments(todayISO, tomorrowISO),
     listGoogleReservations(todayISO, tomorrowISO),
     listServices(),

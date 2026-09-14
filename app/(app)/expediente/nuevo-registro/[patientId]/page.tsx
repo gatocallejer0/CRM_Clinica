@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { requireRole } from "@/lib/auth/roles";
+import { requireScreen } from "@/lib/auth/roles";
 import { getPatientDetail } from "@/app/actions/clinical-records";
 import { listDoctors } from "@/app/actions/appointments";
 import { NewClinicalRecordForm } from "@/components/expediente/new-clinical-record-form";
@@ -15,7 +15,7 @@ export default async function NuevoRegistroClinicoPage({
   // y React cache() comparte esa llamada.
   const { patientId } = await params;
   const [profile, patient, doctors] = await Promise.all([
-    requireRole(["Admin", "Doctor"]),
+    requireScreen("pacientes"),
     getPatientDetail(patientId),
     listDoctors(),
   ]);

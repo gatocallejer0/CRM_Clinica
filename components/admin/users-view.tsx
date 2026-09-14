@@ -106,9 +106,8 @@ export function UsersView({
 
   return (
     <div className="flex flex-col gap-4">
-      <BackToAdminLink />
-
-      <div className="flex justify-end">
+      <div className="flex items-center justify-between gap-3">
+        <BackToAdminLink />
         <Button onClick={openCreateDialog}>
           <PlusIcon />
           Nuevo usuario

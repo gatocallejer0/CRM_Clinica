@@ -2,11 +2,9 @@
 
 import * as z from "zod";
 import { revalidatePath } from "next/cache";
-import { requireRole } from "@/lib/auth/roles";
+import { requireScreen } from "@/lib/auth/roles";
 import { createClient } from "@/lib/supabase/server";
 import { listPatientDocuments, type ClinicalDocument } from "./clinical-documents";
-
-const CLINICAL_ROLES = ["Admin", "Doctor"];
 
 export type PatientListItem = {
   id: string;
@@ -58,7 +56,7 @@ export type PatientDetail = {
 
 /** Lista de pacientes para el panel izquierdo del Expediente. Solo Admin/Doctor (RLS de clinical_records). */
 export async function listPatientsForExpediente(): Promise<PatientListItem[]> {
-  await requireRole(CLINICAL_ROLES);
+  await requireScreen("pacientes");
   const supabase = await createClient();
 
   const [
@@ -104,7 +102,7 @@ type ClinicalRecordRow = Omit<ClinicalRecord, "doctor_name"> & {
 };
 
 export async function getPatientDetail(patientId: string): Promise<PatientDetail | null> {
-  await requireRole(CLINICAL_ROLES);
+  await requireScreen("pacientes");
   const supabase = await createClient();
 
   const [
@@ -199,7 +197,7 @@ export async function createClinicalRecord(
   _prevState: CreateClinicalRecordState,
   formData: FormData,
 ): Promise<CreateClinicalRecordState> {
-  const profile = await requireRole(CLINICAL_ROLES);
+  const profile = await requireScreen("pacientes");
 
   const parsed = CreateClinicalRecordSchema.safeParse({
     patientId: formData.get("patientId"),
@@ -261,7 +259,7 @@ export type PrescriptionPrintData = {
 
 /** Datos para la vista imprimible de una receta. Null si el registro no existe o no tiene receta. */
 export async function getClinicalRecordForPrint(recordId: string): Promise<PrescriptionPrintData | null> {
-  await requireRole(CLINICAL_ROLES);
+  await requireScreen("pacientes");
   const supabase = await createClient();
 
   const { data: record, error } = await supabase

@@ -1,4 +1,4 @@
-import { requireRole } from "@/lib/auth/roles";
+import { requireScreen } from "@/lib/auth/roles";
 import { createClient } from "@/lib/supabase/server";
 import { buildCsv } from "@/lib/csv";
 
@@ -9,7 +9,7 @@ type FieldRow = {
 };
 
 export async function GET() {
-  await requireRole(["Admin"]);
+  await requireScreen("admin.pacientes");
 
   const supabase = await createClient();
   const { data, error } = await supabase

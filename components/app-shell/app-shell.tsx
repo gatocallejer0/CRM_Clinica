@@ -10,9 +10,11 @@ const BREAKPOINT = 861;
 
 export function AppShell({
   profile,
+  allowedScreens,
   children,
 }: {
   profile: Profile;
+  allowedScreens: string[];
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -45,6 +47,7 @@ export function AppShell({
 
       <Sidebar
         profile={profile}
+        allowedScreens={allowedScreens}
         pathname={pathname}
         isDesktop={isDesktop}
         collapsed={collapsed}

@@ -16,7 +16,7 @@ const CLINIC_UTC_OFFSET = "-06:00";
  * idénticos pero bytes distintos, lo que React detecta como error de
  * hidratación. Normalizamos a espacio normal en ambos lados.
  */
-function normalizeSpaces(text: string): string {
+export function normalizeSpaces(text: string): string {
   return text.replace(/[  ]/g, " ");
 }
 
@@ -101,6 +101,16 @@ export function clinicToday(): Date {
   return combineClinicDateTime(key, "00:00");
 }
 
+/**
+ * Instante actual (epoch ms), envuelto en una función en vez de llamar
+ * `Date.now()` directo dentro del cuerpo de un componente — la regla
+ * react-hooks/purity lo marca como llamada impura ahí, pero no dentro de un
+ * helper como este.
+ */
+export function nowMs(): number {
+  return Date.now();
+}
+
 export function addDays(date: Date, days: number): Date {
   const key = toClinicDateKey(date);
   const [y, m, d] = key.split("-").map(Number);
@@ -133,5 +143,10 @@ export function startOfMonth(date: Date): Date {
 
 export function isSameClinicDay(a: Date, b: Date): boolean {
   return toClinicDateKey(a) === toClinicDateKey(b);
+}
+
+/** Día del mes (1-31) de `date` en hora de Guatemala — cuántos días del mes han transcurrido, incluyendo hoy. */
+export function clinicDayOfMonth(date: Date): number {
+  return Number(toClinicDateKey(date).split("-")[2]);
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useImperativeHandle, forwardRef } from "react";
+import { useRef, useState, useImperativeHandle, forwardRef } from "react";
 import FullCalendar from "@fullcalendar/react";
 import type {
   DateSelectArg,
@@ -13,11 +13,12 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import listPlugin from "@fullcalendar/list";
 import interactionPlugin from "@fullcalendar/interaction";
-import type { Appointment } from "@/app/actions/appointments";
+import type { Appointment, OverlapConflict } from "@/app/actions/appointments";
 import { rescheduleAppointment } from "@/app/actions/appointments";
 import type { GoogleReservation } from "@/app/actions/google-calendar";
 import { toClinicDateKey, toClinicTimeKey } from "@/lib/clinic-time";
 import { STATUS_STYLE } from "./appointment-meta";
+import { OverlapWarning } from "./overlap-warning";
 
 export type CalendarViewName = "timeGridDay" | "timeGridWeek" | "dayGridMonth" | "listMonth";
 
@@ -97,6 +98,16 @@ export const FullCalendarView = forwardRef<
   ref,
 ) {
   const calendarRef = useRef<FullCalendar | null>(null);
+  // Traslape detectado al arrastrar una cita a un horario ocupado — se
+  // resuelve con el mismo aviso en línea que usa el formulario de cita
+  // (OverlapWarning), no con un window.confirm() nativo que rompería la
+  // consistencia visual justo en un momento de decisión. La cita se queda
+  // visualmente en su nueva posición mientras se pregunta; "revert()" solo
+  // se llama si la usuaria cancela.
+  const [pendingDrop, setPendingDrop] = useState<{
+    info: EventDropArg;
+    overlap: OverlapConflict[];
+  } | null>(null);
 
   useImperativeHandle(ref, () => ({
     changeView: (view) => calendarRef.current?.getApi().changeView(view),
@@ -157,18 +168,11 @@ export const FullCalendarView = forwardRef<
       info.revert();
       return;
     }
-    let result = await rescheduleAppointment(info.event.id, newStart.toISOString());
+    const result = await rescheduleAppointment(info.event.id, newStart.toISOString());
 
     if (result.overlap && result.overlap.length > 0) {
-      const details = result.overlap.map((c) => `${c.timeLabel} — ${c.patientName}`).join("\n");
-      const confirmed = window.confirm(
-        `Ya hay una cita en ese horario:\n${details}\n\n¿Agendar de todas formas?`,
-      );
-      if (!confirmed) {
-        info.revert();
-        return;
-      }
-      result = await rescheduleAppointment(info.event.id, newStart.toISOString(), true);
+      setPendingDrop({ info, overlap: result.overlap });
+      return;
     }
 
     if (result.error) {
@@ -178,8 +182,30 @@ export const FullCalendarView = forwardRef<
     }
   }
 
+  function handleCancelOverlapDrop() {
+    pendingDrop?.info.revert();
+    setPendingDrop(null);
+  }
+
+  async function handleConfirmOverlapDrop() {
+    if (!pendingDrop) return;
+    const newStart = pendingDrop.info.event.start;
+    if (!newStart) {
+      pendingDrop.info.revert();
+      setPendingDrop(null);
+      return;
+    }
+    const result = await rescheduleAppointment(pendingDrop.info.event.id, newStart.toISOString(), true);
+    if (result.error) {
+      pendingDrop.info.revert();
+    } else {
+      onChanged();
+    }
+    setPendingDrop(null);
+  }
+
   return (
-    <div className="clinic-calendar">
+    <div className="clinic-calendar relative">
       <FullCalendar
         ref={calendarRef}
         plugins={[dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin]}
@@ -219,6 +245,18 @@ export const FullCalendarView = forwardRef<
         noEventsText="Sin citas programadas."
         allDaySlot={false}
       />
+
+      {pendingDrop && (
+        <div className="absolute inset-x-4 bottom-4 z-30 mx-auto w-auto max-w-md sm:right-4 sm:left-auto">
+          <OverlapWarning
+            overlap={pendingDrop.overlap}
+            onDismiss={handleCancelOverlapDrop}
+            onConfirm={handleConfirmOverlapDrop}
+            dismissLabel="Cancelar"
+            confirmLabel="Agendar de todas formas"
+          />
+        </div>
+      )}
     </div>
   );
 });

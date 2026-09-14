@@ -42,6 +42,10 @@ supabase/.temp/
 
 # claude code local state
 .claude/
+.codex/
+.agents/
+.impeccable/
+skills-lock.json
 
 # typescript
 *.tsbuildinfo

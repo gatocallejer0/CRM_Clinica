@@ -1,9 +1,15 @@
-import type { SaleStatus } from "@/app/actions/catalog";
+import type { PaymentMethod, SaleStatus } from "@/app/actions/catalog";
 
 export const SALE_STATUS_LABELS: Record<SaleStatus, string> = {
   borrador: "Borrador",
   pagado: "Pagado",
   pendiente_pago: "Pendiente de pago",
+};
+
+export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+  efectivo: "Efectivo",
+  tarjeta: "Tarjeta",
+  transferencia: "Transferencia",
 };
 
 export const SALE_STATUS_STYLE: Record<SaleStatus, { color: string; backgroundColor: string }> = {

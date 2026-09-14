@@ -19,9 +19,9 @@ export function PrescriptionPrintView({ data }: { data: PrescriptionPrintData })
           <div
             className="size-11 shrink-0 rounded-xl bg-white"
             style={{
-              backgroundImage: "url(/logo.png)",
-              backgroundSize: "80px 44px",
-              backgroundPosition: "0 0",
+              backgroundImage: "url(/logo-icon.png)",
+              backgroundSize: "contain",
+              backgroundPosition: "center",
               backgroundRepeat: "no-repeat",
             }}
           />

@@ -327,7 +327,7 @@ function PatientsRecurrenceTab({
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="font-heading text-sm font-semibold text-foreground">Pacientes en riesgo de abandono</p>
+            <p className="font-heading text-sm font-semibold text-foreground">Pacientes sin control reciente</p>
             <p className="text-xs text-muted-foreground">
               Sin cita en los últimos 90 días, con al menos una visita previa.
             </p>
@@ -364,7 +364,7 @@ function PatientsRecurrenceTab({
                   <TableCell colSpan={4} className="p-0">
                     <EmptyState
                       icon={CircleCheckIcon}
-                      message="Ninguna paciente en riesgo ahora mismo."
+                      message="Todas las pacientes tienen control reciente."
                       tone="positive"
                     />
                   </TableCell>
