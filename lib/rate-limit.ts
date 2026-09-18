@@ -1,13 +1,31 @@
 import "server-only";
 
 import { headers } from "next/headers";
+import { ipAddress } from "@vercel/functions";
 
-/** IP del cliente a partir de los headers que pone el proxy/hosting delante de Next.js. */
+/**
+ * IP del cliente para usar como clave de rate limit. Antes se leía el
+ * primer valor de x-forwarded-for directamente — un header que cualquier
+ * cliente controla por completo (basta mandar un valor distinto en cada
+ * request para caer siempre en un bucket nuevo y esquivar el límite). Se
+ * usa en su lugar x-real-ip vía ipAddress() de @vercel/functions: en el
+ * hosting de este proyecto (Vercel, ver README), ese header lo calcula y
+ * fija la red de Vercel a partir de la conexión TCP real, y el valor que
+ * un cliente intente mandar con ese mismo nombre se descarta en el edge
+ * antes de llegar a esta función. En local (`next dev`, sin ese proxy
+ * delante) no viene seteado — cae a "unknown", igual que antes cuando
+ * faltaban ambos headers.
+ */
 export async function getClientIp(): Promise<string> {
   const h = await headers();
-  const forwardedFor = h.get("x-forwarded-for");
-  if (forwardedFor) return forwardedFor.split(",")[0].trim();
-  return h.get("x-real-ip") ?? "unknown";
+  // No se le pasa `h` directo a ipAddress(): las ReadonlyHeaders de Next.js
+  // tienen su propia propiedad interna `.headers` (su proxy de
+  // implementación), e ipAddress() decide si recibió un Request o un
+  // Headers mirando "headers" in input — con `h` directo, esa condición da
+  // true y termina leyendo el proxy interno de Next (que no tiene .get())
+  // en vez de los headers reales. Envolver en un objeto { get } evita esa
+  // detección ambigua.
+  return ipAddress({ get: (name: string) => h.get(name) }) ?? "unknown";
 }
 
 export class RateLimitError extends Error {
