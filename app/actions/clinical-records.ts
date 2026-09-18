@@ -220,7 +220,21 @@ export async function createClinicalRecord(
     return { error: "Revisa los datos del registro." };
   }
 
-  const doctorId = parsed.data.doctorId ?? (profile.role.name === "Doctor" ? profile.id : null);
+  // El selector de doctorId en el formulario solo se muestra a Admins (un
+  // Doctor ve su propio nombre fijo) — pero eso es nada más una restricción
+  // de la UI. Sin este chequeo de rol acá, cualquier Doctor podía mandar el
+  // campo igual (el formulario no impide construir el POST a mano) con el
+  // id de otra doctora y quedar como si esa otra hubiera firmado el
+  // diagnóstico/receta. Solo un Admin puede fijar un doctorId ajeno; para
+  // cualquier otro rol se ignora lo que mande el cliente y se usa el propio
+  // (o null si ni siquiera es Doctor, ej. un rol de Recepción con acceso a
+  // "pacientes").
+  const doctorId =
+    profile.role.name === "Admin"
+      ? (parsed.data.doctorId ?? null)
+      : profile.role.name === "Doctor"
+        ? profile.id
+        : null;
 
   const supabase = await createClient();
   const { error } = await supabase.from("clinical_records").insert({
