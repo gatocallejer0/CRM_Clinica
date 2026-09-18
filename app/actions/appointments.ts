@@ -686,9 +686,18 @@ export async function rescheduleAppointment(
   return {};
 }
 
+// Google exige que el id de un evento use solo minúsculas a-v y dígitos
+// 0-9 (codificación base32hex, ver la doc de events.insert), 5 a 1024
+// caracteres. Se valida acá — el único punto donde un id de evento entra al
+// sistema desde el cliente — porque este valor termina interpolado en la
+// URL de updateCalendarEvent/deleteCalendarEvent; aceptar cualquier string
+// hubiera permitido manipular esa URL con un id ajeno o con caracteres que
+// alteran la ruta.
+const GOOGLE_EVENT_ID_PATTERN = /^[a-v0-9]{5,1024}$/;
+
 const AssignReservationSchema = z
   .object({
-    googleEventId: z.string().min(1),
+    googleEventId: z.string().regex(GOOGLE_EVENT_ID_PATTERN, { error: "Reserva inválida." }),
     doctorId: z.string().uuid(),
     startISO: z.string().min(1),
     endISO: z.string().min(1),

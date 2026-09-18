@@ -15,6 +15,14 @@ function requireEnv(name: string): string {
   return value;
 }
 
+// Sin esto, un fetch() a Google que nunca resuelve (red intermitente, DNS
+// colgado, etc.) cuelga para siempre — nada en este archivo tenía timeout,
+// así que una sola llamada atascada bloqueaba el render entero de la Agenda
+// (la espera un Promise.all sin límite en app/(app)/agenda/page.tsx). Los
+// callers ya tratan estas funciones como best-effort (try/catch → []), pero
+// eso no sirve de nada si la promesa nunca llega a resolver o rechazar.
+const FETCH_TIMEOUT_MS = 8_000;
+
 export function buildGoogleAuthUrl(redirectUri: string, state: string): string {
   const params = new URLSearchParams({
     client_id: requireEnv("GOOGLE_CLIENT_ID"),
@@ -35,13 +43,31 @@ type TokenResponse = {
   refresh_token?: string;
   expires_in: number;
   token_type: string;
+  /** Espacio-separado: los scopes que Google realmente otorgó, que pueden
+   * ser menos de los pedidos (ver CALENDAR_SCOPE / hasCalendarScope abajo). */
+  scope?: string;
 };
+
+/** Único scope que de verdad importa validar: sin este, la conexión "existe"
+ * pero ninguna llamada a la API de Calendar va a funcionar. */
+export const CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.events";
+
+/** true si el token trae el scope de Calendar — Google a veces devuelve
+ * menos permisos de los pedidos (scope no agregado a la pantalla de
+ * consentimiento, o una sesión de consentimiento vieja que no se refrescó),
+ * y eso no es un error de la llamada, solo un token que no sirve para nada
+ * de Calendar. Se valida explícito en vez de asumir que "llegó un
+ * refresh_token" es suficiente. */
+export function hasCalendarScope(tokens: TokenResponse): boolean {
+  return (tokens.scope ?? "").split(/\s+/).includes(CALENDAR_SCOPE);
+}
 
 async function postToken(body: URLSearchParams): Promise<TokenResponse> {
   const res = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body,
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
   if (!res.ok) {
     const text = await res.text();
@@ -73,9 +99,32 @@ export async function refreshAccessToken(refreshToken: string): Promise<TokenRes
   );
 }
 
+/**
+ * Revoca el refresh token en Google (invalida también el access token
+ * vigente que salió de él). "Desconectar" en el CRM antes solo borraba
+ * nuestra fila — Google seguía viendo la app como autorizada del lado de
+ * la cuenta, así que una reconexión podía heredar una sesión de
+ * consentimiento vieja en vez de una limpia. Nunca lanza: si Google ya no
+ * conoce el token (ya revocado a mano, por ejemplo) da igual, el objetivo
+ * (que quede desconectado) ya se cumple.
+ */
+export async function revokeGoogleToken(refreshToken: string): Promise<void> {
+  try {
+    await fetch("https://oauth2.googleapis.com/revoke", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ token: refreshToken }),
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
+  } catch (err) {
+    console.error("[revokeGoogleToken] Error:", err);
+  }
+}
+
 export async function getGoogleUserEmail(accessToken: string): Promise<string | null> {
   const res = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
     headers: { Authorization: `Bearer ${accessToken}` },
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
   if (!res.ok) return null;
   const data = await res.json();
@@ -117,7 +166,7 @@ export async function listCalendarEvents(
   });
   const res = await fetch(
     `https://www.googleapis.com/calendar/v3/calendars/${CALENDAR_ID}/events?${params.toString()}`,
-    { headers: { Authorization: `Bearer ${accessToken}` } },
+    { headers: { Authorization: `Bearer ${accessToken}` }, signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) },
   );
   if (!res.ok) throw new Error(`Google Calendar events.list error (${res.status}): ${await res.text()}`);
   const data = await res.json();
@@ -154,6 +203,7 @@ export async function createCalendarEvent(
         "Content-Type": "application/json",
       },
       body: JSON.stringify(eventPayload(event, timeZone)),
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     },
   );
   if (!res.ok) throw new Error(`Google Calendar create error (${res.status}): ${await res.text()}`);
@@ -173,7 +223,7 @@ export async function updateCalendarEvent(
   timeZone: string,
 ): Promise<boolean> {
   const res = await fetch(
-    `https://www.googleapis.com/calendar/v3/calendars/${CALENDAR_ID}/events/${eventId}`,
+    `https://www.googleapis.com/calendar/v3/calendars/${CALENDAR_ID}/events/${encodeURIComponent(eventId)}`,
     {
       method: "PATCH",
       headers: {
@@ -181,6 +231,7 @@ export async function updateCalendarEvent(
         "Content-Type": "application/json",
       },
       body: JSON.stringify(eventPayload(event, timeZone)),
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     },
   );
   if (res.status === 404) return false;
@@ -190,10 +241,11 @@ export async function updateCalendarEvent(
 
 export async function deleteCalendarEvent(accessToken: string, eventId: string): Promise<void> {
   const res = await fetch(
-    `https://www.googleapis.com/calendar/v3/calendars/${CALENDAR_ID}/events/${eventId}`,
+    `https://www.googleapis.com/calendar/v3/calendars/${CALENDAR_ID}/events/${encodeURIComponent(eventId)}`,
     {
       method: "DELETE",
       headers: { Authorization: `Bearer ${accessToken}` },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     },
   );
   // 404/410: ya no existe — el resultado que queríamos, no un error.

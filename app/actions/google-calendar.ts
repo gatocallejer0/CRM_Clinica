@@ -9,6 +9,7 @@ import {
   updateCalendarEvent,
   deleteCalendarEvent,
   listCalendarEvents,
+  revokeGoogleToken,
   type GoogleEventBlock,
 } from "@/lib/google-calendar";
 import { CLINIC_TZ } from "@/lib/clinic-time";
@@ -177,6 +178,17 @@ export async function getGoogleCalendarStatus(): Promise<GoogleCalendarStatus> {
 export async function disconnectGoogleCalendar(): Promise<{ error?: string }> {
   const profile = await requireScreen("cuenta");
   const admin = createAdminClient();
+
+  // Revoca en Google antes de borrar nuestra fila — si no, "desconectar" acá
+  // no cambia nada del lado de Google, y una reconexión posterior puede
+  // heredar la sesión de consentimiento vieja en vez de una realmente nueva
+  // (justo lo que causó que un scope agregado después no se reflejara).
+  const { data: connection } = await admin
+    .from("google_calendar_connections")
+    .select("refresh_token")
+    .eq("doctor_id", profile.id)
+    .maybeSingle();
+  if (connection) await revokeGoogleToken(connection.refresh_token);
 
   const { error } = await admin
     .from("google_calendar_connections")

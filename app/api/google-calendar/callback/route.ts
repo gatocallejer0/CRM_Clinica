@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { requireRole } from "@/lib/auth/roles";
 import { createAdminClient } from "@/lib/supabase/server";
-import { exchangeCodeForTokens, getGoogleUserEmail } from "@/lib/google-calendar";
+import { exchangeCodeForTokens, getGoogleUserEmail, hasCalendarScope } from "@/lib/google-calendar";
 
 const STAFF_ROLES = ["Admin", "Doctor", "Recepción"];
 
@@ -32,6 +32,20 @@ export async function GET(request: NextRequest) {
     // pasa si Google no re-consultó consentimiento (no debería, mandamos
     // prompt=consent, pero se valida por las dudas).
     if (!tokens.refresh_token) return redirectToAccount(request, "?gcal=error");
+
+    // Que haya refresh_token no significa que el token sirva para algo: si
+    // el scope de Calendar no viene incluido (pantalla de consentimiento sin
+    // ese scope agregado, o una sesión de consentimiento vieja), la
+    // conexión se guardaría como "Conectada" pero cada sincronización
+    // fallaría en silencio con 403 ACCESS_TOKEN_SCOPE_INSUFFICIENT — mejor
+    // rechazarla acá, con un mensaje que sí explica qué falta.
+    if (!hasCalendarScope(tokens)) {
+      console.error(
+        "[google-calendar/callback] Token sin scope de Calendar. Scopes recibidos:",
+        tokens.scope || "(vacío)",
+      );
+      return redirectToAccount(request, "?gcal=sin_permiso_calendario");
+    }
 
     const googleEmail = await getGoogleUserEmail(tokens.access_token);
 

@@ -13,6 +13,10 @@ const MESSAGES: Record<string, { error?: boolean; text: string }> = {
   conectado: { text: "Google Calendar conectado correctamente." },
   denegado: { error: true, text: "No se completó la conexión — se canceló el permiso en Google." },
   error: { error: true, text: "No se pudo conectar con Google Calendar. Intenta de nuevo." },
+  sin_permiso_calendario: {
+    error: true,
+    text: "Google no otorgó el permiso de Calendario — revisa que el scope de Calendar esté agregado en la pantalla de consentimiento de Google Cloud Console, y vuelve a intentar.",
+  },
 };
 
 export function GoogleCalendarCard({
