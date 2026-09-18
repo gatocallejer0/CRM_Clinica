@@ -14,6 +14,17 @@ async function getRoleName(admin: AdminClient, roleId: string): Promise<string> 
   return data?.name ?? roleId;
 }
 
+/** Rol actual de un perfil dado su id — para chequear el rol del *objetivo* de una acción (ej. a quién se le resetea la contraseña), no el rol que se le va a asignar. */
+async function getCurrentRoleName(admin: AdminClient, profileId: string): Promise<string | null> {
+  const { data } = await admin
+    .from("profiles")
+    .select("role:roles(name)")
+    .eq("id", profileId)
+    .single<{ role: { name: string } | { name: string }[] | null }>();
+  const role = data?.role;
+  return (Array.isArray(role) ? role[0]?.name : role?.name) ?? null;
+}
+
 export type Role = {
   id: string;
   name: string;
@@ -115,6 +126,15 @@ export async function createUser(
   const { fullName, email, roleId } = validatedFields.data;
   const admin = createAdminClient();
 
+  // La pantalla "admin.usuarios" se puede delegar a un rol personalizado
+  // (ej. "Recursos Humanos") sin darle Admin completo — así que crear una
+  // cuenta con rol Admin queda reservado a quien ya es Admin. Sin esto,
+  // ese rol delegado podría fabricarse una cuenta Admin persistente.
+  const roleName = await getRoleName(admin, roleId);
+  if (roleName === "Admin" && profile.role.name !== "Admin") {
+    return { error: "Solo un Admin puede crear una cuenta con rol Admin." };
+  }
+
   const password = generateTempPassword();
   const passwordExpiresAt = new Date(Date.now() + TEMP_PASSWORD_TTL_MS).toISOString();
 
@@ -143,7 +163,6 @@ export async function createUser(
     return { error: profileError.message };
   }
 
-  const roleName = await getRoleName(admin, roleId);
   await logAudit({
     tableName: "profiles",
     recordId: created.user.id,
@@ -186,6 +205,14 @@ export async function resetUserPassword(
 
   const { id } = validatedFields.data;
   const admin = createAdminClient();
+
+  // Mismo motivo que en createUser: "admin.usuarios" puede ser un rol
+  // delegado sin privilegios de Admin. Sin este chequeo, ese rol podría
+  // resetear la contraseña de una cuenta Admin real y tomarla por completo.
+  const targetRoleName = await getCurrentRoleName(admin, id);
+  if (targetRoleName === "Admin" && profile.role.name !== "Admin") {
+    return { error: "Solo un Admin puede resetear la contraseña de otra cuenta Admin." };
+  }
 
   const password = generateTempPassword();
   const passwordExpiresAt = new Date(Date.now() + TEMP_PASSWORD_TTL_MS).toISOString();
@@ -255,6 +282,14 @@ export async function updateUser(
 
   const admin = createAdminClient();
 
+  // Mismo motivo que en createUser: sin este chequeo, un rol delegado con
+  // "admin.usuarios" (pero sin ser Admin) podría asignarse a sí mismo (o a
+  // cualquier cuenta) el rol Admin completo.
+  const newRoleName = await getRoleName(admin, roleId);
+  if (newRoleName === "Admin" && profile.role.name !== "Admin") {
+    return { error: "Solo un Admin puede asignar el rol Admin." };
+  }
+
   const { data: before } = await admin
     .from("profiles")
     .select("full_name, active, role:roles(name)")
@@ -280,7 +315,7 @@ export async function updateUser(
   }
 
   if (before) {
-    const afterRoleName = await getRoleName(admin, roleId);
+    const afterRoleName = newRoleName;
     const isActive = active === "true";
     const changes: string[] = [];
     if (before.full_name !== fullName) changes.push(`Nombre: "${before.full_name}" → "${fullName}"`);
