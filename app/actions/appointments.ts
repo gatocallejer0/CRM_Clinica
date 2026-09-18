@@ -2,7 +2,7 @@
 
 import * as z from "zod";
 import { revalidatePath } from "next/cache";
-import { requireScreen } from "@/lib/auth/roles";
+import { requireScreen, requireActiveSession, getRoleScreens } from "@/lib/auth/roles";
 import { createClient } from "@/lib/supabase/server";
 import { combineClinicDateTime, formatClinicTime } from "@/lib/clinic-time";
 import { rateLimit, getClientIp, RateLimitError } from "@/lib/rate-limit";
@@ -227,6 +227,22 @@ export type PatientOption = {
 export async function searchPatients(query: string): Promise<PatientOption[]> {
   const trimmed = query.trim().replace(/[,()]/g, "");
   if (!trimmed) return [];
+
+  // A diferencia de todo lo demás en este archivo, esta acción no tenía
+  // ningún chequeo de sesión/pantalla — cualquier cuenta autenticada activa,
+  // incluso un rol sin ninguna pantalla de pacientes (ej. "cuenta",
+  // autoservicio de contraseña), podía llamar este Server Action
+  // directamente y listar nombre/correo de cualquier paciente. Se exige
+  // "cobros" o "agenda" — las dos pantallas cuyos diálogos usan este
+  // buscador (ver components/agenda/patient-search-field.tsx). No se usa
+  // requireScreen acá porque esto se llama en vivo mientras se escribe: un
+  // redirect a mitad de tipeo sería una mala experiencia — devolver una
+  // lista vacía alcanza para negar el dato.
+  const profile = await requireActiveSession();
+  if (profile.role.name !== "Admin") {
+    const allowed = await getRoleScreens(profile.role.id);
+    if (!allowed.has("cobros") && !allowed.has("agenda")) return [];
+  }
 
   try {
     rateLimit(`search-patients:${await getClientIp()}`, { limit: 60, windowMs: 60_000 });

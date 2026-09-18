@@ -79,6 +79,17 @@ export async function getDoctorGoogleBusyBlocks(
   rangeEndISO: string,
   excludeEventId?: string,
 ): Promise<GoogleEventBlock[]> {
+  // A diferencia de sus hermanos en este archivo (listGoogleReservations,
+  // getGoogleCalendarStatus, etc.), esta función no tenía ningún chequeo de
+  // sesión/pantalla — al estar exportada desde un archivo "use server",
+  // Next.js igual genera un endpoint público invocable con un POST directo,
+  // sin pasar por el caller interno (findOverlaps) que hoy sí exige la
+  // pantalla "agenda" antes de llegar acá. Confiar en que "nadie más la
+  // importa del lado del cliente" no es un límite de seguridad real (así lo
+  // dice la propia doc de Next.js sobre Server Actions) — se agrega el
+  // mismo requireScreen("agenda") que usan sus hermanos.
+  await requireScreen("agenda");
+
   const admin = createAdminClient();
 
   try {
