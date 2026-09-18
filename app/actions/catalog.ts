@@ -418,6 +418,10 @@ const SaleItemSchema = z
       .number()
       .int({ error: "La cantidad debe ser un número entero." })
       .positive({ error: "La cantidad debe ser mayor a 0." }),
+    // Solo para mostrar el total en el diálogo antes de guardar — create_sale
+    // (SQL) ignora este valor y usa siempre products.price/services.price,
+    // así que no hay forma de vender a un precio distinto del catálogo
+    // editando el request (ver migración 0023_sale_price_from_catalog.sql).
     unitPrice: z.coerce.number().min(0),
   })
   .refine((item) => !!item.productId !== !!item.serviceId, {
