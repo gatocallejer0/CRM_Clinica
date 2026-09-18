@@ -12,6 +12,14 @@ const LoginSchema = z.object({
   redirectTo: z.string().optional(),
 });
 
+// `startsWith("/")` solo no alcanza: "//evil.example" también empieza con
+// "/" pero el navegador lo trata como URL absoluta (protocol-relative) hacia
+// otro host — exactamente lo que dejaba usar este redirect para phishing
+// post-login. Se exige que después del primer "/" no venga otro "/" ni un
+// "\" (algunos navegadores normalizan "\" a "/", así que "/\evil.example"
+// cuela por la misma vía si no se bloquea también).
+const SAFE_REDIRECT_PATTERN = /^\/(?!\/|\\)/;
+
 export type LoginState =
   | {
       error?: string;
@@ -74,7 +82,7 @@ export async function login(
     redirect("/cambiar-password");
   }
 
-  redirect(redirectTo && redirectTo.startsWith("/") ? redirectTo : "/");
+  redirect(redirectTo && SAFE_REDIRECT_PATTERN.test(redirectTo) ? redirectTo : "/");
 }
 
 export async function logout() {
