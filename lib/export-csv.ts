@@ -11,7 +11,14 @@ export function exportRowsToCsv(filename: string, rows: Record<string, string | 
 
   const headers = Object.keys(rows[0]);
   const escapeCell = (value: string | number): string => {
-    const text = String(value ?? "");
+    let text = String(value ?? "");
+    // Neutraliza inyección de fórmulas CSV: si la celda empieza con =, +, -,
+    // @ o un tab/CR, Excel/Sheets la interpreta como fórmula al abrir el
+    // archivo — anteponer ' fuerza que se lea como texto plano (mitigación
+    // estándar de OWASP). Estos datos pueden venir de una fuente no
+    // confiable (ej. el formulario público de auto-registro), así que se
+    // aplica siempre, no solo cuando "se ve raro".
+    if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
     return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
   };
 

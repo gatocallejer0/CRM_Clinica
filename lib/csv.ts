@@ -71,7 +71,12 @@ export function parseCsv(rawText: string): string[][] {
 }
 
 function escapeCsvCell(value: string): string {
-  return /[",\n\r]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+  // Mismo fix que lib/export-csv.ts (ver ese comentario): neutraliza
+  // inyección de fórmulas CSV anteponiendo ' cuando la celda empieza con
+  // =, +, -, @ o un tab/CR, para que Excel/Sheets la lea como texto plano
+  // en vez de ejecutarla como fórmula.
+  const text = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+  return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
 export function buildCsv(rows: string[][]): string {
