@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { toast } from "sonner";
 import {
   IdCardIcon,
   CalendarIcon,
@@ -16,6 +17,8 @@ import {
   PlusIcon,
   PencilIcon,
   QrCodeIcon,
+  KeyRoundIcon,
+  RefreshCwIcon,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -23,6 +26,7 @@ import {
   type PatientListItem,
   type PatientDetail,
 } from "@/app/actions/clinical-records";
+import { regeneratePatientClaimCode } from "@/app/actions/patients";
 import type { FormField } from "@/app/actions/form-fields";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -88,6 +92,20 @@ export function ExpedienteView({
   // cierra el popup y abre otra paciente antes de que la primera consulta
   // resuelva) sin pisar el detalle correcto con uno viejo.
   const detailRequestIdRef = useRef(0);
+  const [regeneratingCode, setRegeneratingCode] = useState(false);
+
+  async function handleRegenerateCode() {
+    if (!detail) return;
+    setRegeneratingCode(true);
+    const result = await regeneratePatientClaimCode(detail.id);
+    setRegeneratingCode(false);
+    if ("error" in result) {
+      toast.error(result.error);
+      return;
+    }
+    setDetail({ ...detail, claim_code: result.code });
+    toast.success(`Nuevo código: ${result.code}`);
+  }
 
   const q = query.trim().toLowerCase();
   const filtered = q
@@ -335,6 +353,37 @@ export function ExpedienteView({
                   </div>
                 ))}
               </div>
+
+              {detail.claim_code && (
+                <div
+                  className="mx-8 mb-2 flex items-center justify-between rounded-2xl border border-dashed border-border bg-muted/40 px-5 py-3.5"
+                >
+                  <div className="flex items-center gap-3">
+                    <KeyRoundIcon className="size-4.5 shrink-0 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm font-medium text-foreground">
+                        Código de registro pendiente:{" "}
+                        <span className="font-mono tracking-wide">{detail.claim_code}</span>
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Compártelo con la paciente para que complete su ficha en línea.
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0 rounded-full"
+                    disabled={regeneratingCode}
+                    loading={regeneratingCode}
+                    onClick={handleRegenerateCode}
+                  >
+                    <RefreshCwIcon />
+                    Regenerar
+                  </Button>
+                </div>
+              )}
 
               <div
                 className="flex border-t border-border bg-muted/40"

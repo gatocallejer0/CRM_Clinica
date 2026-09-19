@@ -71,6 +71,14 @@ export function PatientRegistrationForm({
               <Input id="email" name="email" type="email" required />
             </Field>
 
+            <Field
+              label="Código de la clínica"
+              htmlFor="claimCode"
+              hint="Solo si ya tienes una cita agendada y la clínica te lo compartió."
+            >
+              <Input id="claimCode" name="claimCode" type="text" autoComplete="off" />
+            </Field>
+
             {generalFields.map((field) => (
               <FieldGroup key={field.id} field={field} twoColumn={wide} />
             ))}

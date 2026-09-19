@@ -17,6 +17,8 @@ export type PatientListItem = {
   age: string | null;
   emergency_contact: string | null;
   last_visit: string | null;
+  /** Código pendiente de que la paciente complete su registro público (ver 0024_patient_claim_code.sql); null si ya lo usó o nunca hizo falta uno. */
+  claim_code: string | null;
 };
 
 export type ClinicalRecord = {
@@ -50,6 +52,8 @@ export type PatientDetail = {
   nit: string | null;
   blood_type: string | null;
   allergies: string | null;
+  /** Código pendiente de que la paciente complete su registro público (ver 0024_patient_claim_code.sql); null si ya lo usó o nunca hizo falta uno. */
+  claim_code: string | null;
   records: ClinicalRecord[];
   documents: ClinicalDocument[];
 };
@@ -65,7 +69,7 @@ export async function listPatientsForExpediente(): Promise<PatientListItem[]> {
   ] = await Promise.all([
     supabase
       .from("patient_summary")
-      .select("id, full_name, email, phone, national_id, nit, birth_date, age, emergency_contact")
+      .select("id, full_name, email, phone, national_id, nit, birth_date, age, emergency_contact, claim_code")
       .order("full_name", { nullsFirst: false }),
     supabase
       .from("clinical_records")
@@ -94,6 +98,7 @@ export async function listPatientsForExpediente(): Promise<PatientListItem[]> {
     age: p.age,
     emergency_contact: p.emergency_contact,
     last_visit: lastVisitByPatientId.get(p.id) ?? null,
+    claim_code: p.claim_code,
   }));
 }
 
@@ -113,7 +118,7 @@ export async function getPatientDetail(patientId: string): Promise<PatientDetail
     supabase
       .from("patient_summary")
       .select(
-        "id, full_name, email, national_id, phone, age, birth_date, emergency_contact, nit, blood_type, allergies",
+        "id, full_name, email, national_id, phone, age, birth_date, emergency_contact, nit, blood_type, allergies, claim_code",
       )
       .eq("id", patientId)
       .maybeSingle(),
@@ -144,6 +149,7 @@ export async function getPatientDetail(patientId: string): Promise<PatientDetail
     nit: patient.nit,
     blood_type: patient.blood_type,
     allergies: patient.allergies,
+    claim_code: patient.claim_code,
     records: (records ?? []).map((r) => ({
       id: r.id,
       record_date: r.record_date,

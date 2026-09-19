@@ -28,6 +28,17 @@ export function generateTempPassword(length = 12): string {
   return chars.join("");
 }
 
+/**
+ * Código corto para que Recepción se lo dicte a una paciente por teléfono
+ * (ver 0024_patient_claim_code.sql) — mismo alfabeto sin ambigüedades que
+ * generateTempPassword, pero sin símbolos ni mezcla de mayúsculas/minúsculas
+ * (más fácil de transcribir a mano que una contraseña).
+ */
+export function generateClaimCode(length = 6): string {
+  const alphabet = UPPER + DIGITS;
+  return Array.from({ length }, () => pick(alphabet)).join("");
+}
+
 export const TEMP_PASSWORD_TTL_MS = 2 * 60 * 60 * 1000;
 
 export const NEW_PASSWORD_REQUIREMENTS_HINT =

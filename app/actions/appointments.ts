@@ -6,6 +6,7 @@ import { requireScreen, requireActiveSession, getRoleScreens } from "@/lib/auth/
 import { createClient } from "@/lib/supabase/server";
 import { combineClinicDateTime, formatClinicTime } from "@/lib/clinic-time";
 import { rateLimit, getClientIp, RateLimitError } from "@/lib/rate-limit";
+import { generateClaimCode } from "@/lib/password";
 import { syncAppointmentToGoogleCalendar, getDoctorGoogleBusyBlocks } from "./google-calendar";
 import { createSaleFromAttendedAppointment } from "./catalog";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -403,15 +404,22 @@ export async function listAppointments(fromISO: string, toISO: string): Promise<
  * de crear uno duplicado — a diferencia del formulario público, esta acción
  * la hace personal ya autenticado, así que no hay riesgo de que alguien sin
  * permisos toque datos de otra paciente.
+ *
+ * claimCode: se genera solo al crear un registro "cáscara" nuevo (ver
+ * 0024_patient_claim_code.sql) — la paciente lo necesita para completar su
+ * ficha desde el formulario público sin sesión. Si el correo ya existía, se
+ * devuelve el código que ya tuviera guardado (puede ser null si ya completó
+ * su registro, o si nunca hizo falta uno) para que Recepción lo pueda
+ * volver a leer en voz alta si hace falta.
  */
 async function createNewPatientRow(
   supabase: SupabaseClient,
   name: string,
   email: string,
-): Promise<{ id: string } | { error: string }> {
+): Promise<{ id: string; claimCode: string | null } | { error: string }> {
   const { data: existingPatient, error: lookupError } = await supabase
     .from("patients")
-    .select("id")
+    .select("id, claim_code")
     .eq("email", email)
     .maybeSingle();
 
@@ -421,12 +429,13 @@ async function createNewPatientRow(
   }
 
   if (existingPatient) {
-    return { id: existingPatient.id };
+    return { id: existingPatient.id, claimCode: existingPatient.claim_code };
   }
 
+  const claimCode = generateClaimCode();
   const { data: newPatient, error: patientError } = await supabase
     .from("patients")
-    .insert({ email })
+    .insert({ email, claim_code: claimCode })
     .select("id")
     .single();
 
@@ -452,7 +461,7 @@ async function createNewPatientRow(
     }
   }
 
-  return { id: newPatient.id };
+  return { id: newPatient.id, claimCode };
 }
 
 const CreateAppointmentSchema = z
@@ -488,6 +497,7 @@ export type AppointmentFormState =
       error?: string;
       success?: boolean;
       overlap?: OverlapConflict[];
+      claimCode?: string | null;
     }
   | undefined;
 
@@ -529,6 +539,7 @@ export async function createAppointment(
   }
 
   let patientId = parsed.data.patientId;
+  let claimCode: string | null = null;
   if (parsed.data.patientMode === "new") {
     const result = await createNewPatientRow(
       supabase,
@@ -537,6 +548,7 @@ export async function createAppointment(
     );
     if ("error" in result) return { error: result.error };
     patientId = result.id;
+    claimCode = result.claimCode;
   }
 
   const { data: newAppointment, error } = await supabase
@@ -571,7 +583,7 @@ export async function createAppointment(
   await syncToGoogleCalendarSilently(newAppointment.id);
 
   revalidatePath("/agenda");
-  return { success: true };
+  return { success: true, claimCode };
 }
 
 const UpdateAppointmentSchema = z.object({
@@ -737,7 +749,9 @@ const AssignReservationSchema = z
     path: ["newPatientEmail"],
   });
 
-export type AssignReservationFormState = { error?: string; success?: boolean } | undefined;
+export type AssignReservationFormState =
+  | { error?: string; success?: boolean; claimCode?: string | null }
+  | undefined;
 
 /**
  * Asigna paciente a un evento que ya existe en el Google Calendar de la
@@ -773,6 +787,7 @@ export async function assignPatientToGoogleReservation(
   const supabase = await createClient();
 
   let patientId = parsed.data.patientId;
+  let claimCode: string | null = null;
   if (parsed.data.patientMode === "new") {
     const result = await createNewPatientRow(
       supabase,
@@ -781,6 +796,7 @@ export async function assignPatientToGoogleReservation(
     );
     if ("error" in result) return { error: result.error };
     patientId = result.id;
+    claimCode = result.claimCode;
   }
 
   const durationMinutes = Math.round(
@@ -805,5 +821,5 @@ export async function assignPatientToGoogleReservation(
   }
 
   revalidatePath("/agenda");
-  return { success: true };
+  return { success: true, claimCode };
 }

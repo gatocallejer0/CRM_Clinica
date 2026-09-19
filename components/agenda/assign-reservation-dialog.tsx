@@ -59,7 +59,14 @@ export function AssignReservationDialog({
 
   useEffect(() => {
     if (state?.success) {
-      toast.success("Cita asignada");
+      if (state.claimCode) {
+        toast.success("Cita asignada", {
+          description: `Código de registro para la paciente: ${state.claimCode} — compártelo para que complete su ficha en línea.`,
+          duration: 20000,
+        });
+      } else {
+        toast.success("Cita asignada");
+      }
       onSaved();
       onOpenChange(false);
     }

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { rateLimit, getClientIp, RateLimitError } from "@/lib/rate-limit";
 import { requireScreen } from "@/lib/auth/roles";
+import { generateClaimCode } from "@/lib/password";
 
 const EmailSchema = z.email({ error: "Ingresa un correo válido." });
 
@@ -24,6 +25,12 @@ export type PatientRegistrationState =
  * `form_fields` (el <form> los nombra con `field.key`), en vez de una lista
  * fija de parámetros: la función en la base valida cuáles están activos, son
  * obligatorios o tienen opciones válidas.
+ *
+ * `claimCode` es aparte de las respuestas dinámicas: no es una pregunta del
+ * catálogo, es el código que Recepción le da a la paciente al agendarle una
+ * cita por teléfono. Solo lo exige register_patient() cuando el correo ya
+ * tiene un registro "cáscara" pendiente de completar (ver
+ * 0024_patient_claim_code.sql) — un correo nuevo se registra igual sin él.
  */
 export async function registerPatient(
   _prevState: PatientRegistrationState,
@@ -41,9 +48,12 @@ export async function registerPatient(
     throw err;
   }
 
+  const claimCodeRaw = formData.get("claimCode");
+  const claimCode = typeof claimCodeRaw === "string" && claimCodeRaw.trim() ? claimCodeRaw.trim() : null;
+
   const answers: Record<string, string> = {};
   for (const [key, value] of formData.entries()) {
-    if (key === "email" || typeof value !== "string") continue;
+    if (key === "email" || key === "claimCode" || typeof value !== "string") continue;
     const trimmed = value.trim();
     if (trimmed !== "") answers[key] = trimmed;
   }
@@ -52,6 +62,7 @@ export async function registerPatient(
   const { error } = await supabase.rpc("register_patient", {
     p_email: emailResult.data,
     p_answers: answers,
+    p_claim_code: claimCode,
   });
 
   if (error) {
@@ -177,4 +188,36 @@ export async function updatePatientFicha(
 
   revalidatePath("/expediente");
   return { success: true };
+}
+
+/**
+ * Genera un código nuevo para que Recepción se lo vuelva a dictar a una
+ * paciente que perdió el que le dieron al agendar (ver
+ * 0024_patient_claim_code.sql). Solo tiene sentido si la paciente todavía no
+ * completó su registro — no valida eso acá porque no hace daño pisar un
+ * claim_code ya null con uno nuevo (nunca se vuelve a usar de todas formas
+ * una vez que register_patient() encuentra datos reales guardados).
+ */
+export async function regeneratePatientClaimCode(patientId: string): Promise<{ code: string } | { error: string }> {
+  await requireScreen("pacientes");
+
+  const patientIdResult = z.uuid({ error: "Paciente inválido." }).safeParse(patientId);
+  if (!patientIdResult.success) {
+    return { error: "Paciente inválido." };
+  }
+
+  const code = generateClaimCode();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("patients")
+    .update({ claim_code: code })
+    .eq("id", patientIdResult.data);
+
+  if (error) {
+    console.error("[regeneratePatientClaimCode] Supabase error:", error.message);
+    return { error: "No se pudo generar el código." };
+  }
+
+  revalidatePath("/expediente");
+  return { code };
 }

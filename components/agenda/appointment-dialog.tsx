@@ -94,7 +94,18 @@ export function AppointmentDialog({
 
   useEffect(() => {
     if (state?.success) {
-      toast.success(isEdit ? "Cita actualizada" : "Cita agendada");
+      if (state.claimCode) {
+        // La paciente lo necesita para completar su ficha desde el
+        // formulario público sin sesión (ver 0024_patient_claim_code.sql) —
+        // se muestra más tiempo del default para que Recepción alcance a
+        // leerlo por teléfono antes de que desaparezca.
+        toast.success(isEdit ? "Cita actualizada" : "Cita agendada", {
+          description: `Código de registro para la paciente: ${state.claimCode} — compártelo para que complete su ficha en línea.`,
+          duration: 20000,
+        });
+      } else {
+        toast.success(isEdit ? "Cita actualizada" : "Cita agendada");
+      }
       onSaved();
       onOpenChange(false);
     }
