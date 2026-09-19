@@ -30,6 +30,11 @@ comment on column public.patients.claim_code is 'Código de una sola vez que Rec
 -- da select a authenticated, ver 0002_patients.sql) — agregar claim_code acá
 -- solo lo expone al personal ya autenticado que usa Agenda/Expediente, que
 -- es justo quien necesita volver a leérselo a la paciente si lo perdió.
+--
+-- claim_code va al FINAL de la lista, no junto a las demás columnas de
+-- patients: CREATE OR REPLACE VIEW solo permite agregar columnas nuevas al
+-- final — insertar una en medio corre la posición de las que siguen, y
+-- Postgres lo interpreta como "renombrar" esa columna (error 42P16).
 create or replace view public.patient_summary
 with (security_invoker = true)
 as
@@ -38,7 +43,6 @@ select
   p.email,
   p.registered_by,
   p.created_at,
-  p.claim_code,
   max(a.value) filter (where f.key = 'full_name') as full_name,
   max(a.value) filter (where f.key = 'phone') as phone,
   max(a.value) filter (where f.key = 'age') as age,
@@ -47,7 +51,8 @@ select
   max(a.value) filter (where f.key = 'allergies') as allergies,
   max(a.value) filter (where f.key = 'nit') as nit,
   max(a.value) filter (where f.key = 'national_id') as national_id,
-  max(a.value) filter (where f.key = 'emergency_contact') as emergency_contact
+  max(a.value) filter (where f.key = 'emergency_contact') as emergency_contact,
+  p.claim_code
 from public.patients p
 left join public.patient_answers a on a.patient_id = p.id
 left join public.form_fields f on f.id = a.field_id
