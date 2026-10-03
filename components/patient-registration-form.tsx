@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import Link from "next/link";
 import {
   registerPatient,
   type PatientRegistrationState,
@@ -110,6 +111,23 @@ export function PatientRegistrationForm({
       <Button type="submit" disabled={pending} loading={pending}>
         {pending ? "Enviando..." : "Enviar registro"}
       </Button>
+
+      {/* Solo en la página pública — en el diálogo "Nuevo paciente" de Admin
+          (wide=true) quien llena el formulario es el personal, no la
+          paciente, así que no le corresponde "aceptar" nada acá. */}
+      {!wide && (
+        <p className="-mt-2 text-center text-xs text-muted-foreground">
+          Al enviar este formulario, aceptas nuestros{" "}
+          <Link href="/terminos" className="underline underline-offset-2 hover:text-foreground">
+            Términos y Condiciones
+          </Link>{" "}
+          y nuestra{" "}
+          <Link href="/politica-privacidad" className="underline underline-offset-2 hover:text-foreground">
+            Política de Privacidad
+          </Link>
+          .
+        </p>
+      )}
     </form>
   );
 }
