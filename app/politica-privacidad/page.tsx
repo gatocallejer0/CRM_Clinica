@@ -34,20 +34,27 @@ export default function PoliticaPrivacidadPage() {
               Esta página explica qué información recopila <Placeholder>Nombre legal de la clínica</Placeholder>{" "}
               (&ldquo;la clínica&rdquo;, &ldquo;nosotros&rdquo;) a través de su sistema de agendamiento y
               expediente de pacientes, para qué la usamos, con quién la compartimos y cómo puedes ejercer tus
-              derechos sobre ella.
+              derechos sobre ella. Somos una clínica de ginecología y obstetricia, y sabemos que la información
+              de salud sexual y reproductiva es de las más íntimas que existen — por eso la tratamos con el
+              máximo nivel de reserva.
             </p>
 
             <h2 className={h2}>1. Qué información recopilamos</h2>
             <p className={p}>
               Cuando agendas una cita o completas tu registro como paciente —ya sea en persona, por teléfono con
-              Recepción, o a través del formulario en línea— podemos recopilar:
+              Recepción, o a través del formulario en línea— y a lo largo de tu atención, podemos recopilar:
             </p>
             <ul className={ul}>
-              <li>Datos de contacto: correo electrónico, teléfono, dirección.</li>
-              <li>Datos de identificación: nombre completo, documento de identificación (DPI), NIT.</li>
+              <li>Datos de contacto: correo electrónico, teléfono, dirección y contacto de emergencia.</li>
+              <li>Datos de identificación: nombre completo, fecha de nacimiento, documento de identificación (DPI), NIT.</li>
               <li>
-                Datos de salud: antecedentes médicos, alergias, medicamentos, tipo de sangre, enfermedades
-                familiares, y demás información que proporciones en el formulario de antecedentes médicos.
+                Antecedentes médicos generales: medicamentos, cirugías, alergias, enfermedades familiares, seguro
+                médico, hábitos (tabaco, alcohol) y demás información del formulario de antecedentes médicos.
+              </li>
+              <li>
+                Expediente clínico ginecológico y obstétrico: motivo de consulta, antecedentes ginecológicos y
+                obstétricos, historial menstrual, embarazos, partos, métodos anticonceptivos, resultados de
+                laboratorio, ultrasonidos, diagnósticos, recetas y notas médicas de la doctora.
               </li>
               <li>Datos de la cita: fecha, hora, servicio solicitado y doctora asignada.</li>
               <li>
@@ -68,9 +75,52 @@ export default function PoliticaPrivacidadPage() {
               <li>Registrar los cobros por los servicios que recibes.</li>
               <li>Contactarte sobre tu cita o tu atención, cuando sea necesario.</li>
             </ul>
-            <p className={p}>No usamos tu información para fines publicitarios ni la vendemos a terceros.</p>
+            <p className={p}>
+              Usamos estos datos <strong className="text-foreground">únicamente</strong> para tu atención médica y
+              la administración de la consulta. No los usamos para fines publicitarios ni los vendemos a
+              terceros. La base de este tratamiento es el consentimiento que nos das al registrarte y la propia
+              relación médico-paciente.
+            </p>
 
-            <h2 className={h2}>3. Con quién compartimos tu información</h2>
+            <h2 className={h2}>3. Datos especialmente sensibles</h2>
+            <p className={p}>
+              <strong className="text-foreground">Salud sexual y reproductiva.</strong> Embarazos, pérdidas
+              gestacionales, métodos anticonceptivos, infecciones de transmisión sexual y procedimientos
+              ginecológicos reciben protección reforzada dentro de la clínica: solo los consulta la doctora
+              tratante y el personal que ella autorice para tu atención.
+            </p>
+            <p className={p}>
+              <strong className="text-foreground">VIH e infecciones de transmisión sexual.</strong> Estos
+              diagnósticos reciben confidencialidad reforzada, en atención a lo que exige la Ley General para el
+              Combate del Virus de Inmunodeficiencia Humana y del Síndrome de Inmunodeficiencia Adquirida y de la
+              Promoción, Protección y Defensa de los Derechos Humanos ante el VIH/SIDA (Decreto 27-2000).
+            </p>
+            <p className={p}>
+              <strong className="text-foreground">Pacientes menores de edad.</strong> Sus datos se registran con
+              el consentimiento de su madre, padre o representante legal. Esta política no exime a la clínica de
+              sus obligaciones legales de denunciar casos de violencia o abuso sexual cuando correspondan.
+            </p>
+
+            <h2 className={h2}>4. Lo que nunca hacemos</h2>
+            <ul className={ul}>
+              <li>
+                <strong className="text-foreground">No vendemos</strong> ni alquilamos tu información a terceros.
+              </li>
+              <li>
+                <strong className="text-foreground">No usamos</strong> tus datos para publicidad, perfiles
+                comerciales ni contacto de marketing.
+              </li>
+              <li>
+                <strong className="text-foreground">No entrenamos</strong> modelos de inteligencia artificial con
+                tu información.
+              </li>
+              <li>
+                <strong className="text-foreground">No compartimos</strong> tu información con aseguradoras,
+                empleadores o familiares sin tu autorización, salvo que la ley nos obligue a ello.
+              </li>
+            </ul>
+
+            <h2 className={h2}>5. Con quién compartimos tu información</h2>
             <p className={p}>
               Tu información solo la ve el personal autorizado de la clínica (doctoras, recepción y
               administración), según lo que necesite cada uno para hacer su trabajo. Además, usamos a los
@@ -93,29 +143,36 @@ export default function PoliticaPrivacidadPage() {
               </li>
             </ul>
             <p className={p}>
-              No compartimos tu información con ninguna otra empresa, ni la usamos para publicidad de terceros.
+              También podemos compartir información con autoridades, únicamente cuando exista una orden judicial
+              o una obligación legal expresa. Fuera de estos casos, no compartimos tu información con ninguna
+              otra empresa ni la usamos para publicidad de terceros.
             </p>
 
-            <h2 className={h2}>4. Cuánto tiempo conservamos tu información</h2>
+            <h2 className={h2}>6. Cuánto tiempo conservamos tu información</h2>
             <p className={p}>
               Conservamos tu expediente mientras mantengas una relación activa como paciente de la clínica, y
-              después por el tiempo que la buena práctica médica y la normativa aplicable a expedientes clínicos
-              lo requieran.
+              después por el tiempo que exige la normativa sanitaria aplicable a expedientes clínicos (Código de
+              Salud, Decreto 90-97) y la buena práctica médica.
             </p>
 
-            <h2 className={h2}>5. Seguridad</h2>
-            <p className={p}>
-              Protegemos tu información con acceso restringido por roles (solo el personal autorizado puede ver
-              datos de pacientes), contraseñas individuales por cada cuenta del personal, conexión cifrada
-              (HTTPS) en todo el sistema, y revisiones periódicas de seguridad del código y la configuración.
-              Ningún sistema es 100% infalible, pero tomamos estas medidas en serio.
-            </p>
+            <h2 className={h2}>7. Seguridad</h2>
+            <p className={p}>Protegemos tu información con:</p>
+            <ul className={ul}>
+              <li>Acceso restringido por roles: solo el personal autorizado puede ver datos de pacientes, y cada quien ve solo lo que su puesto necesita.</li>
+              <li>Contraseñas individuales por cada cuenta del personal, con cifrado gestionado por nuestro proveedor de autenticación.</li>
+              <li>Conexión cifrada (HTTPS) en todo el sistema.</li>
+              <li>Una bitácora que registra quién crea, modifica o elimina cada registro, y cuándo.</li>
+              <li>Revisiones periódicas de seguridad del código y la configuración.</li>
+            </ul>
+            <p className={p}>Ningún sistema es 100% infalible, pero tomamos estas medidas en serio.</p>
 
-            <h2 className={h2}>6. Tus derechos</h2>
+            <h2 className={h2}>8. Tus derechos</h2>
             <p className={p}>
-              Puedes solicitarnos en cualquier momento acceder a tu información, corregirla si está
-              desactualizada, o pedir que la eliminemos (sujeto a las obligaciones de conservación de expedientes
-              médicos que mencionamos arriba). Para ejercer cualquiera de estos derechos, contáctanos:
+              Puedes solicitarnos en cualquier momento <strong className="text-foreground">conocer</strong> qué
+              datos tuyos guardamos, <strong className="text-foreground">corregirlos</strong> si están
+              desactualizados, o pedir que los eliminemos (sujeto a las obligaciones de conservación de
+              expedientes médicos que mencionamos arriba), conforme a los artículos 24 y 31 de la Constitución
+              Política de la República de Guatemala. Para ejercer cualquiera de estos derechos, contáctanos:
             </p>
             <ul className={ul}>
               <li>
@@ -129,16 +186,25 @@ export default function PoliticaPrivacidadPage() {
               </li>
             </ul>
 
-            <h2 className={h2}>7. Menores de edad</h2>
+            <h2 className={h2}>9. Si ocurre un incidente de seguridad</h2>
             <p className={p}>
-              Si se registra a una paciente menor de edad, asumimos que quien completa el formulario cuenta con
-              la autoridad de madre, padre o tutor legal para hacerlo.
+              Si detectamos un acceso no autorizado, pérdida o alteración de tus datos, te lo haremos saber lo
+              antes posible, indicándote qué ocurrió, qué información pudo verse afectada y qué medidas tomamos.
             </p>
 
-            <h2 className={h2}>8. Cambios a esta política</h2>
+            <h2 className={h2}>10. Cambios a esta política</h2>
             <p className={p}>
               Podemos actualizar esta política ocasionalmente. Si hacemos cambios importantes, actualizaremos la
               fecha al inicio de esta página.
+            </p>
+
+            <h2 className={h2}>11. Marco legal</h2>
+            <p className={p}>
+              Guatemala aún no cuenta con una ley general de protección de datos personales. Esta política se
+              basa en la Constitución Política de la República (artículos 24 y 31), el Código Penal (delitos
+              informáticos, artículos 274 A al 274 G), el Código de Salud (Decreto 90-97) y la Ley General para
+              el Combate del VIH y SIDA (Decreto 27-2000). La actualizaremos cuando entre en vigor una ley
+              específica de protección de datos.
             </p>
 
             <p className={`${p} mt-6`}>

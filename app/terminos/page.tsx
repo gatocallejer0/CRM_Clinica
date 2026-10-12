@@ -58,38 +58,55 @@ export default function TerminosPage() {
               <li>Usar el sistema para enviar contenido falso, ofensivo o malicioso.</li>
               <li>Intentar vulnerar, sobrecargar o interferir con el funcionamiento del sistema.</li>
             </ul>
+            <p className={p}>
+              El acceso no autorizado a sistemas informáticos y el uso indebido de información registrada en
+              ellos puede constituir delito conforme a los artículos 274 A al 274 G del Código Penal de
+              Guatemala.
+            </p>
 
-            <h2 className={h2}>4. Código de registro</h2>
+            <h2 className={h2}>4. Confidencialidad de tus datos de salud</h2>
+            <p className={p}>
+              Como clínica de ginecología y obstetricia, tratamos tu información de salud sexual y reproductiva
+              con la máxima reserva. Los diagnósticos de VIH e infecciones de transmisión sexual reciben
+              confidencialidad reforzada, conforme a la Ley General para el Combate del VIH y SIDA (Decreto
+              27-2000). Más detalles sobre qué datos recopilamos y cómo los protegemos están en nuestra{" "}
+              <Link href="/politica-privacidad" className="text-foreground underline underline-offset-2">
+                Política de Privacidad
+              </Link>
+              .
+            </p>
+
+            <h2 className={h2}>5. Pacientes menores de edad</h2>
+            <p className={p}>
+              Si se registra a una paciente menor de edad, asumimos que quien completa el formulario cuenta con
+              la autoridad de madre, padre o tutor legal para hacerlo. Estos términos no eximen a la clínica de
+              sus obligaciones legales de denunciar casos de violencia o abuso sexual cuando correspondan.
+            </p>
+
+            <h2 className={h2}>6. Código de registro</h2>
             <p className={p}>
               Si la clínica te agendó una cita por teléfono, te compartirá un código corto para que completes tu
               ficha desde este formulario. Ese código es personal — no lo compartas con nadie más que no sea tú
               misma, ya que sirve precisamente para que solo tú puedas completar tus propios datos.
             </p>
 
-            <h2 className={h2}>5. Disponibilidad del servicio</h2>
+            <h2 className={h2}>7. Disponibilidad del servicio</h2>
             <p className={p}>
               Hacemos un esfuerzo razonable para mantener el sistema disponible, pero puede haber interrupciones
               por mantenimiento o causas fuera de nuestro control. No garantizamos disponibilidad ininterrumpida.
             </p>
 
-            <h2 className={h2}>6. Privacidad</h2>
-            <p className={p}>
-              El uso de tus datos se rige por nuestra{" "}
-              <Link href="/politica-privacidad" className="text-foreground underline underline-offset-2">
-                Política de Privacidad
-              </Link>
-              , que forma parte de estos términos.
-            </p>
-
-            <h2 className={h2}>7. Cambios a estos términos</h2>
+            <h2 className={h2}>8. Cambios a estos términos</h2>
             <p className={p}>
               Podemos actualizar estos términos ocasionalmente. Si hacemos cambios importantes, actualizaremos la
               fecha al inicio de esta página.
             </p>
 
-            <h2 className={h2}>8. Ley aplicable y contacto</h2>
+            <h2 className={h2}>9. Ley aplicable y contacto</h2>
             <p className={p}>
-              Estos términos se rigen por las leyes de la República de Guatemala. Para consultas, contáctanos:
+              Estos términos se rigen por las leyes de la República de Guatemala, incluyendo el Código de Salud
+              (Decreto 90-97) y la Ley General para el Combate del VIH y SIDA (Decreto 27-2000) en lo relativo al
+              manejo de tu información de salud. Para consultas, contáctanos:
             </p>
             <ul className={ul}>
               <li>

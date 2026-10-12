@@ -16,7 +16,9 @@ export function PendingDetailBanner() {
         <strong className="font-semibold">Borrador pendiente de completar.</strong> Los textos resaltados como{" "}
         <code className="rounded bg-amber-100 px-1 py-0.5 font-mono text-[0.85em]">[entre corchetes]</code> son
         marcadores de posición (nombre legal, contacto, dirección) — hay que reemplazarlos por los datos reales
-        de la clínica antes de publicar esta página.
+        de la clínica antes de publicar esta página. El contenido legal (citas a leyes de Guatemala, categorías
+        de datos sensibles) fue redactado con apoyo de IA, no por un abogado — conviene que un abogado colegiado
+        activo en Guatemala lo revise antes de considerarlo definitivo.
       </p>
     </div>
   );
